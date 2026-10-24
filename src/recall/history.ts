@@ -42,13 +42,19 @@ export function daysBefore(date: string, days: number): string {
 /**
  * Books shown in the `days` daily notes before `date` (not counting `date` itself), keyed by `titleKey`,
  * each with how many days ago it was last shown (1 = the day before). Missing daily notes are skipped.
+ * `fileName` maps a date to its note's path under `dailyDir` (the `dailyFormat` setting).
  */
-export async function recentlyShown(dailyDir: string, date: string, days: number): Promise<Map<string, number>> {
+export async function recentlyShown(
+  dailyDir: string,
+  date: string,
+  days: number,
+  fileName: (date: string) => string = (d) => `${d}.md`,
+): Promise<Map<string, number>> {
   const shown = new Map<string, number>();
   for (let ago = 1; ago <= days; ago++) {
     let text: string;
     try {
-      text = await readFile(join(dailyDir, `${daysBefore(date, ago)}.md`), 'utf8');
+      text = await readFile(join(dailyDir, fileName(daysBefore(date, ago))), 'utf8');
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
       throw error;

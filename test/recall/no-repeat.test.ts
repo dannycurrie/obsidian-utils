@@ -38,8 +38,9 @@ const dailyWith = (title: string, before = '# Day\n') =>
 /** Daily notes for the `count` days before DATE, showing `titles[0]` yesterday, `titles[1]` the day before, and so on. */
 const history = (titles: string[]) => Object.fromEntries(titles.map((title, i) => [daysBefore(DATE, i + 1), dailyWith(title)]));
 
+/** The book a run would pick. `--dry-run` writes nothing, so repeated picks on one day stay independent. */
 const pickFor = async (vault: { configPath: string }, seed: number, date = DATE, extra: string[] = []) =>
-  (await run(['--date', date, '--config', vault.configPath, ...extra], ENV, NOW, seeded(seed))).title;
+  (await run(['--date', date, '--config', vault.configPath, '--dry-run', ...extra], ENV, NOW, seeded(seed))).title;
 
 test('noRepeatDays defaults to 10 and must be a whole number of 0 or more', async () => {
   const defaults = await makeRecallVault({ baseUrl: stub.baseUrl });
@@ -72,12 +73,19 @@ test('only the heading link inside book-recall markers counts as shown', () => {
 });
 
 test('books in recall blocks of the previous noRepeatDays daily notes are never picked', async () => {
-  // Shown yesterday ... 10 days ago, so only Ulysses is left; the run date's own note does not count.
+  // Shown yesterday ... 10 days ago, so only Ulysses is left.
   const vault = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: library(TITLES),
     daily: { ...history(TITLES.slice(0, 10)), [DATE]: dailyWith('Ulysses') },
   });
+  // The run date's own note does not count (it matters for --reroll, which replaces that block).
+  const shown = await recentlyShown(join(vault.vaultPath, 'Daily'), DATE, 10);
+  assert.equal(shown.size, 10);
+  assert.equal(shown.has('ulysses'), false);
+
+  // A plain run on a day that already has a block is a no-op (ticket 05), so pick from an empty note.
+  await writeFile(vault.dailyPath(DATE), '# Today\n');
   for (let seed = 0; seed < 5; seed++) assert.equal(await pickFor(vault, seed), 'Ulysses');
 });
 
@@ -194,4 +202,24 @@ test('a past note with an unclosed block still counts its heading and does not f
   const vault = await makeRecallVault({ baseUrl: stub.baseUrl, books: library(['Dune', 'Mindset']), daily: { [DATE]: '# Today\n' } });
   await writeFile(vault.dailyPath(daysBefore(DATE, 1)), '<!-- book-recall:start -->\n## Book recall — [[Dune]]\n- a\n');
   assert.equal(await pickFor(vault, 1), 'Mindset');
+});
+
+test('the window reads past daily notes named by dailyFormat', async () => {
+  const vault = await makeRecallVault({
+    baseUrl: stub.baseUrl,
+    books: library(['Dune', 'Mindset']),
+    files: { 'Daily/2026/10-23.md': dailyWith('Dune'), 'Daily/2026/10-24.md': '# Today\n' },
+    config: { dailyFormat: 'YYYY/MM-DD' },
+  });
+  for (let seed = 0; seed < 5; seed++) assert.equal(await pickFor(vault, seed), 'Mindset');
+});
+
+test('--reroll also skips books inside the window', async () => {
+  const vault = await makeRecallVault({
+    baseUrl: stub.baseUrl,
+    books: library(['Dune', 'Mindset', 'Range']),
+    daily: { ...history(['Dune']), [DATE]: dailyWith('Mindset') },
+  });
+  // Mindset is today's book and Dune was shown yesterday, so Range is the only choice.
+  for (let seed = 0; seed < 5; seed++) assert.equal(await pickFor(vault, seed, DATE, ['--reroll']), 'Range');
 });

@@ -4,13 +4,13 @@
 
 **Blocked by:** 03 — Random pick from eligible books
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A second plain run on the same day makes no LLM call, leaves the note byte-for-byte unchanged and exits 0 with a one-line "already done" message
-- [ ] `--regenerate` keeps the same book; `--reroll` never picks today's current book
-- [ ] Both replace the block in place; text before and after the markers is preserved byte-for-byte
-- [ ] `--dry-run` prints the block to stdout, makes the LLM call, and writes nothing
-- [ ] A missing daily note is created from the template with `{{date:YYYY-MM-DD}}` and `{{date:GGGG-[W]WW}}` rendered correctly, followed by the block
-- [ ] Daily folder, filename format and template path come from config, defaulting to the vault's daily-notes settings
-- [ ] Near midnight in London (including a DST change), the run writes to the London date
-- [ ] A forced re-run produces 0 duplicate blocks and 0 duplicate daily notes
+- [x] A second plain run on the same day makes no LLM call, leaves the note byte-for-byte unchanged and exits 0 with a one-line "already done" message
+- [x] `--regenerate` keeps the same book; `--reroll` never picks today's current book
+- [x] Both replace the block in place; text before and after the markers is preserved byte-for-byte
+- [x] `--dry-run` prints the block to stdout, makes the LLM call, and writes nothing
+- [x] A missing daily note is created from the template with `{{date:YYYY-MM-DD}}` and `{{date:GGGG-[W]WW}}` rendered correctly, followed by the block
+- [x] Daily folder, filename format and template path come from config, defaulting to the vault's daily-notes settings
+- [x] Near midnight in London (including a DST change), the run writes to the London date
+- [x] A forced re-run produces 0 duplicate blocks and 0 duplicate daily notes

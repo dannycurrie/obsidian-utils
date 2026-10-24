@@ -70,7 +70,8 @@ export async function writeBlock(options: {
     existing = await readFile(notePath, 'utf8');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    await writeAtomic(notePath, `${options.newNote.trimEnd()}\n\n${block}\n`, markers.tool);
+    const head = options.newNote.trimEnd();
+    await writeAtomic(notePath, head === '' ? `${block}\n` : `${head}\n\n${block}\n`, markers.tool);
     return 'created';
   }
   const { content, outcome } = upsertBlock(existing, block, markers);
