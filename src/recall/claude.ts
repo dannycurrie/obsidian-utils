@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Book } from './book.ts';
+import type { LinkedPart } from './links.ts';
 
 export const LEARNING_COUNT = 5;
 
@@ -7,6 +8,7 @@ const SYSTEM = [
   "You distil a reader's own notes on a book into its key learnings.",
   'Use only what is in the notes; do not add anything from your general knowledge of the book.',
   `Return exactly ${LEARNING_COUNT} learnings, each a single sentence, with no preamble or numbering.`,
+  'The first <notes> are the book note itself; any after it come from notes linked to or from it, so use those only where they bear on this book.',
   "Keep the reader's own wording and examples where possible.",
   'Ignore leftover checklist scaffolding such as ☐/☑ bullets and Status/Context labels.',
 ].join(' ');
@@ -18,9 +20,11 @@ const LEARNINGS_SCHEMA = {
   additionalProperties: false,
 };
 
-export function buildPrompt(book: Book): string {
+/** The book note first, then each linked part, each labelled with its vault-relative path. */
+export function buildPrompt(book: Book, linked: LinkedPart[] = []): string {
   const byline = book.author ? `${book.title} by ${book.author}` : book.title;
-  return `Book: ${byline}\n\n<notes path="${book.path}">\n${book.body}\n</notes>`;
+  const notes = [{ path: book.path, text: book.body }, ...linked].map((part) => `<notes path="${part.path}">\n${part.text}\n</notes>`);
+  return `Book: ${byline}\n\n${notes.join('\n\n')}`;
 }
 
 /** The count is checked here rather than trusted to the schema. */
@@ -42,7 +46,7 @@ export function parseLearnings(message: Anthropic.Message): string[] {
   return learnings.map((l: string) => l.trim());
 }
 
-export async function summarise(options: { apiKey: string; baseUrl?: string; model: string; book: Book }): Promise<string[]> {
+export async function summarise(options: { apiKey: string; baseUrl?: string; model: string; book: Book; linked?: LinkedPart[] }): Promise<string[]> {
   const client = new Anthropic({ apiKey: options.apiKey, baseURL: options.baseUrl });
   let message: Anthropic.Message;
   try {
@@ -50,7 +54,7 @@ export async function summarise(options: { apiKey: string; baseUrl?: string; mod
       model: options.model,
       max_tokens: 16000,
       system: SYSTEM,
-      messages: [{ role: 'user', content: buildPrompt(options.book) }],
+      messages: [{ role: 'user', content: buildPrompt(options.book, options.linked) }],
       output_config: { format: { type: 'json_schema', schema: LEARNINGS_SCHEMA } },
     });
   } catch (error) {

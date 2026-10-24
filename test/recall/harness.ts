@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { after, before, beforeEach } from 'node:test';
 import { createClaudeStub } from '../../mock/claude.ts';
 
@@ -27,11 +27,15 @@ export function useClaudeStub(options: { learnings?: string[] } = {}) {
   return stub;
 }
 
-/** Temp vault with `Books/` and `Daily/` notes plus a config file pointing at it and the stub. */
+/**
+ * Temp vault with `Books/` and `Daily/` notes plus a config file pointing at it and the stub.
+ * `files` adds any other vault file, keyed by vault-relative path.
+ */
 export async function makeRecallVault(options: {
   baseUrl: string;
   books?: Record<string, string>;
   daily?: Record<string, string>;
+  files?: Record<string, string>;
   config?: Record<string, unknown>;
 }) {
   const dir = await mkdtemp(join(tmpdir(), 'book-recall-'));
@@ -43,6 +47,10 @@ export async function makeRecallVault(options: {
   }
   for (const [date, content] of Object.entries(options.daily ?? {})) {
     await writeFile(join(vaultPath, 'Daily', `${date}.md`), content);
+  }
+  for (const [path, content] of Object.entries(options.files ?? {})) {
+    await mkdir(dirname(join(vaultPath, path)), { recursive: true });
+    await writeFile(join(vaultPath, path), content);
   }
   const configPath = join(dir, 'config.json');
   await writeFile(configPath, JSON.stringify({ vaultPath, apiBaseUrl: options.baseUrl, ...options.config }));

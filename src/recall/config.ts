@@ -10,6 +10,10 @@ export type RecallConfig = {
   model: string;
   /** Claude API base URL; only set to point at the local stub. */
   apiBaseUrl?: string;
+  /** Include outgoing linked notes and incoming link passages in the prompt. */
+  linkedNotes: boolean;
+  /** Total cap on linked context; the book note itself is never cut for it. */
+  maxLinkedWords: number;
 };
 
 export const DEFAULT_MODEL = 'claude-sonnet-5-5';
@@ -32,11 +36,17 @@ export async function loadConfig(path: string): Promise<RecallConfig> {
   for (const key of ['booksFolder', 'dailyFolder', 'model', 'apiBaseUrl'] as const) {
     if (raw[key] !== undefined && typeof raw[key] !== 'string') throw new Error(`Config ${path} "${key}" must be a string`);
   }
+  if (raw.linkedNotes !== undefined && typeof raw.linkedNotes !== 'boolean') throw new Error(`Config ${path} "linkedNotes" must be true or false`);
+  if (raw.maxLinkedWords !== undefined && !(Number.isInteger(raw.maxLinkedWords) && (raw.maxLinkedWords as number) >= 0)) {
+    throw new Error(`Config ${path} "maxLinkedWords" must be a whole number of words`);
+  }
 
   return {
     booksFolder: 'Books',
     dailyFolder: 'Daily',
     model: DEFAULT_MODEL,
+    linkedNotes: true,
+    maxLinkedWords: 4000,
     ...raw,
   } as RecallConfig;
 }

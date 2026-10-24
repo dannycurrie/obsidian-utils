@@ -8,6 +8,7 @@ import { MARKERS, renderRecall } from './block.ts';
 import { readBook } from './book.ts';
 import { summarise } from './claude.ts';
 import { defaultConfigPath, loadApiKey, loadConfig } from './config.ts';
+import { gatherLinkedNotes } from './links.ts';
 
 export type RunResult = {
   date: string;
@@ -35,8 +36,12 @@ export async function run(argv: string[], env: NodeJS.ProcessEnv, now: Date): Pr
   const apiKey = loadApiKey(env);
 
   const book = await readBook(config.vaultPath, config.booksFolder, values.book);
-  const learnings = await summarise({ apiKey, baseUrl: config.apiBaseUrl, model: config.model, book });
-  const block = renderRecall({ title: book.title, learnings, words: book.words, model: config.model, now });
+  const linked = config.linkedNotes
+    ? await gatherLinkedNotes({ vaultPath: config.vaultPath, book, maxLinkedWords: config.maxLinkedWords })
+    : [];
+  const learnings = await summarise({ apiKey, baseUrl: config.apiBaseUrl, model: config.model, book, linked });
+  const words = linked.reduce((total, part) => total + part.words, book.words);
+  const block = renderRecall({ title: book.title, learnings, words, linkedNotes: linked.length, model: config.model, now });
   const outcome = await writeBlock({ notePath, block, newNote: '', markers: MARKERS });
 
   return { date, title: book.title, notePath, outcome };
