@@ -9,6 +9,27 @@ export const CANNED_LEARNINGS = [
   'Canned learning five.',
 ];
 
+/**
+ * What the stub does for one request. Queue these in `script`; each request takes the next one,
+ * and an empty queue falls back to the canned success.
+ * - `status`: an API error response (401, 429, 500, ...)
+ * - `hang`: accept the request and never answer, so the client times out
+ * - `learnings`: a reply whose JSON holds this value (any shape, e.g. 4 items or empty strings)
+ * - `text`: a reply with this raw text (e.g. a preamble that isn't JSON)
+ */
+export type StubBehaviour =
+  | { status: number; type?: string; message?: string }
+  | { hang: true }
+  | { learnings: unknown; stop_reason?: string }
+  | { text: string; stop_reason?: string };
+
+const ERROR_TYPES: Record<number, string> = {
+  401: 'authentication_error',
+  429: 'rate_limit_error',
+  500: 'api_error',
+  529: 'overloaded_error',
+};
+
 function sendError(res: ServerResponse, status: number, type: string, message: string) {
   res.writeHead(status, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ type: 'error', error: { type, message } }));
@@ -20,12 +41,17 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
   return JSON.parse(body) as Record<string, unknown>;
 }
 
-/** `requests` collects every accepted request body, so tests can check what was sent. */
+/**
+ * `requests` collects every request body sent with the right key (scripted failures included),
+ * so its length is the number of requests made.
+ */
 export function createClaudeStub(options: { apiKey: string; learnings?: string[] }): {
   server: Server;
   requests: Record<string, unknown>[];
+  script: StubBehaviour[];
 } {
   const requests: Record<string, unknown>[] = [];
+  const script: StubBehaviour[] = [];
   const server = createServer(async (req, res) => {
     if (req.method !== 'POST' || new URL(req.url ?? '/', 'http://localhost').pathname !== '/v1/messages') {
       return sendError(res, 404, 'not_found_error', 'Not found');
@@ -37,6 +63,13 @@ export function createClaudeStub(options: { apiKey: string; learnings?: string[]
     }
     const body = await readJson(req);
     requests.push(body);
+    const behaviour: StubBehaviour = script.shift() ?? { learnings: options.learnings ?? CANNED_LEARNINGS };
+    if ('hang' in behaviour) return;
+    if ('status' in behaviour) {
+      const type = behaviour.type ?? ERROR_TYPES[behaviour.status] ?? 'api_error';
+      return sendError(res, behaviour.status, type, behaviour.message ?? `stub ${type}`);
+    }
+    const text = 'text' in behaviour ? behaviour.text : JSON.stringify({ learnings: behaviour.learnings });
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
@@ -44,12 +77,12 @@ export function createClaudeStub(options: { apiKey: string; learnings?: string[]
         type: 'message',
         role: 'assistant',
         model: body.model,
-        content: [{ type: 'text', text: JSON.stringify({ learnings: options.learnings ?? CANNED_LEARNINGS }) }],
-        stop_reason: 'end_turn',
+        content: [{ type: 'text', text }],
+        stop_reason: behaviour.stop_reason ?? 'end_turn',
         stop_sequence: null,
         usage: { input_tokens: 100, output_tokens: 50 },
       }),
     );
   });
-  return { server, requests };
+  return { server, requests, script };
 }

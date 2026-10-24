@@ -4,11 +4,11 @@
 
 **Blocked by:** 02 — Tracer bullet
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The stub can return 4 or 6 bullets, empty bullets or a preamble; each triggers one retry, then a failure if the retry is also bad
-- [ ] The stub can return 401, 429 and 5xx or hang; each is retried once, then fails with a message naming the cause
-- [ ] Unmatched or repeated `book-recall` markers in the daily note fail with a "fix by hand" message
-- [ ] A missing vault or daily folder fails before any LLM call
-- [ ] In every failure case the daily note is byte-for-byte unchanged and no temp file is left behind
-- [ ] After a successful write, the note is re-read to confirm the block is there
+- [x] The stub can return 4 or 6 bullets, empty bullets or a preamble; each triggers one retry, then a failure if the retry is also bad
+- [x] The stub can return 401, 429 and 5xx or hang; each is retried once, then fails with a message naming the cause
+- [x] Unmatched or repeated `book-recall` markers in the daily note fail with a "fix by hand" message
+- [x] A missing vault or daily folder fails before any LLM call
+- [x] In every failure case the daily note is byte-for-byte unchanged and no temp file is left behind
+- [x] After a successful write, the note is re-read to confirm the block is there

@@ -14,16 +14,21 @@ const CLI = join(import.meta.dirname, '..', '..', 'src', 'recall', 'cli.ts');
  * `stub.requests` holds the bodies the current test sent.
  */
 export function useClaudeStub(options: { learnings?: string[] } = {}) {
-  const { server, requests } = createClaudeStub({ apiKey: API_KEY, ...options });
-  const stub = { baseUrl: '', requests };
+  const { server, requests, script } = createClaudeStub({ apiKey: API_KEY, ...options });
+  // `stub.script` queues per-request behaviours (errors, hangs, bad replies) for the current test.
+  const stub = { baseUrl: '', requests, script };
   before(async () => {
     await new Promise<void>((resolve) => server.listen(0, resolve));
     stub.baseUrl = `http://localhost:${(server.address() as AddressInfo).port}`;
   });
   beforeEach(() => {
     requests.length = 0;
+    script.length = 0;
   });
-  after(() => server.close());
+  after(() => {
+    server.closeAllConnections(); // drops requests a `hang` left open
+    server.close();
+  });
   return stub;
 }
 

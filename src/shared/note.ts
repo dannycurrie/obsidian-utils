@@ -49,6 +49,14 @@ export async function writeAtomic(path: string, content: string, tool: string): 
   }
 }
 
+/** Re-reads the note after a write and fails loudly if the block is not in it exactly once (e.g. Sync overwrote it). */
+export async function confirmBlock(notePath: string, block: string, markers: Markers): Promise<void> {
+  const content = await readFile(notePath, 'utf8').catch(() => '');
+  if (content.split(block).length - 1 !== 1 || count(content, markers.start) !== 1 || count(content, markers.end) !== 1) {
+    throw new Error(`Wrote ${notePath} but the ${markers.tool} block is not there on re-read; another app may have changed the note`);
+  }
+}
+
 /** Writes the block into the note, creating the note from `newNote` if it does not exist. */
 export async function writeBlock(options: {
   notePath: string;
