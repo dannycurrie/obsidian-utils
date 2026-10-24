@@ -1,0 +1,393 @@
+{
+  "from": "2026-10-05T00:00:00+01:00",
+  "to": "2026-10-12T00:00:00+01:00",
+  "timezone": "Europe/London",
+  "metrics": [
+    {
+      "id": "metric-gym",
+      "name": "Gym",
+      "type": "checklist",
+      "timeframe": "weekly",
+      "source": "user",
+      "unit": null,
+      "periods": [
+        {
+          "start": "2026-10-05T00:00:00+01:00",
+          "end": "2026-10-12T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 2,
+          "value": 2,
+          "total": 3,
+          "items": [
+            {
+              "label": "Session 1",
+              "checked": true
+            },
+            {
+              "label": "Session 2",
+              "checked": true
+            },
+            {
+              "label": "Session 3",
+              "checked": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "metric-meditation",
+      "name": "Meditation",
+      "type": "timed",
+      "timeframe": "weekly",
+      "source": "health",
+      "unit": "minutes",
+      "periods": [
+        {
+          "start": "2026-10-05T00:00:00+01:00",
+          "end": "2026-10-06T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 10
+        },
+        {
+          "start": "2026-10-06T00:00:00+01:00",
+          "end": "2026-10-07T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 15
+        },
+        {
+          "start": "2026-10-07T00:00:00+01:00",
+          "end": "2026-10-08T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-08T00:00:00+01:00",
+          "end": "2026-10-09T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 12
+        },
+        {
+          "start": "2026-10-09T00:00:00+01:00",
+          "end": "2026-10-10T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-10T00:00:00+01:00",
+          "end": "2026-10-11T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 10
+        },
+        {
+          "start": "2026-10-11T00:00:00+01:00",
+          "end": "2026-10-12T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 15
+        }
+      ]
+    },
+    {
+      "id": "metric-ai-learning",
+      "name": "AI learning",
+      "type": "timed",
+      "timeframe": "weekly",
+      "source": "user",
+      "unit": "minutes",
+      "periods": [
+        {
+          "start": "2026-10-05T00:00:00+01:00",
+          "end": "2026-10-06T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 30
+        },
+        {
+          "start": "2026-10-06T00:00:00+01:00",
+          "end": "2026-10-07T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-07T00:00:00+01:00",
+          "end": "2026-10-08T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 45
+        },
+        {
+          "start": "2026-10-08T00:00:00+01:00",
+          "end": "2026-10-09T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-09T00:00:00+01:00",
+          "end": "2026-10-10T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 30
+        },
+        {
+          "start": "2026-10-10T00:00:00+01:00",
+          "end": "2026-10-11T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 45
+        },
+        {
+          "start": "2026-10-11T00:00:00+01:00",
+          "end": "2026-10-12T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "metric-early-rising",
+      "name": "Early rising",
+      "type": "cumulative",
+      "timeframe": "weekly",
+      "source": "health",
+      "unit": null,
+      "periods": [
+        {
+          "start": "2026-10-05T00:00:00+01:00",
+          "end": "2026-10-06T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 1
+        },
+        {
+          "start": "2026-10-06T00:00:00+01:00",
+          "end": "2026-10-07T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 1
+        },
+        {
+          "start": "2026-10-07T00:00:00+01:00",
+          "end": "2026-10-08T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-08T00:00:00+01:00",
+          "end": "2026-10-09T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-09T00:00:00+01:00",
+          "end": "2026-10-10T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-10T00:00:00+01:00",
+          "end": "2026-10-11T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-11T00:00:00+01:00",
+          "end": "2026-10-12T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "metric-kms-run",
+      "name": "KMs run",
+      "type": "cumulative",
+      "timeframe": "weekly",
+      "source": "health",
+      "unit": null,
+      "periods": [
+        {
+          "start": "2026-10-05T00:00:00+01:00",
+          "end": "2026-10-06T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 5
+        },
+        {
+          "start": "2026-10-06T00:00:00+01:00",
+          "end": "2026-10-07T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-07T00:00:00+01:00",
+          "end": "2026-10-08T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 4.2
+        },
+        {
+          "start": "2026-10-08T00:00:00+01:00",
+          "end": "2026-10-09T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-09T00:00:00+01:00",
+          "end": "2026-10-10T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-10T00:00:00+01:00",
+          "end": "2026-10-11T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 5
+        },
+        {
+          "start": "2026-10-11T00:00:00+01:00",
+          "end": "2026-10-12T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "metric-mood",
+      "name": "Mood",
+      "type": "average",
+      "timeframe": "weekly",
+      "source": "user",
+      "unit": null,
+      "periods": [
+        {
+          "start": "2026-10-05T00:00:00+01:00",
+          "end": "2026-10-06T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 7
+        },
+        {
+          "start": "2026-10-06T00:00:00+01:00",
+          "end": "2026-10-07T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 2,
+          "value": 6.5
+        },
+        {
+          "start": "2026-10-07T00:00:00+01:00",
+          "end": "2026-10-08T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": null
+        },
+        {
+          "start": "2026-10-08T00:00:00+01:00",
+          "end": "2026-10-09T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 1,
+          "value": 8
+        },
+        {
+          "start": "2026-10-09T00:00:00+01:00",
+          "end": "2026-10-10T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": null
+        },
+        {
+          "start": "2026-10-10T00:00:00+01:00",
+          "end": "2026-10-11T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": null
+        },
+        {
+          "start": "2026-10-11T00:00:00+01:00",
+          "end": "2026-10-12T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": null
+        }
+      ]
+    },
+    {
+      "id": "metric-reading",
+      "name": "Reading",
+      "type": "timed",
+      "timeframe": "weekly",
+      "source": "user",
+      "unit": "minutes",
+      "periods": [
+        {
+          "start": "2026-10-05T00:00:00+01:00",
+          "end": "2026-10-06T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-06T00:00:00+01:00",
+          "end": "2026-10-07T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-07T00:00:00+01:00",
+          "end": "2026-10-08T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-08T00:00:00+01:00",
+          "end": "2026-10-09T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-09T00:00:00+01:00",
+          "end": "2026-10-10T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-10T00:00:00+01:00",
+          "end": "2026-10-11T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        },
+        {
+          "start": "2026-10-11T00:00:00+01:00",
+          "end": "2026-10-12T00:00:00+01:00",
+          "partial": false,
+          "entryCount": 0,
+          "value": 0
+        }
+      ]
+    }
+  ]
+}
