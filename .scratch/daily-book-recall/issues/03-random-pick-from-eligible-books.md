@@ -4,11 +4,11 @@
 
 **Blocked by:** 02 — Tracer bullet
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The books folder is searched recursively; `Templates/` is ignored
-- [ ] With a fixed seed, the same vault always gives the same pick (tests inject the random source, as `week-review` injects the clock)
-- [ ] Over many seeded runs, every eligible book can be picked and no ineligible one ever is
-- [ ] `statuses`, `minWords` and `booksFolder` come from config with the brief's defaults
-- [ ] `--book` with a title that doesn't match a note fails clearly without writing
-- [ ] If no note is eligible at all, the run fails non-zero without writing
+- [x] The books folder is searched recursively; `Templates/` is ignored
+- [x] With a fixed seed, the same vault always gives the same pick (tests inject the random source, as `week-review` injects the clock)
+- [x] Over many seeded runs, every eligible book can be picked and no ineligible one ever is
+- [x] `statuses`, `minWords` and `booksFolder` come from config with the brief's defaults
+- [x] `--book` with a title that doesn't match a note fails clearly without writing
+- [x] If no note is eligible at all, the run fails non-zero without writing

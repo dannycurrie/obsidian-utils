@@ -5,9 +5,9 @@ import { parseArgs } from 'node:util';
 import { londonDate } from '../isoWeek.ts';
 import { type WriteOutcome, writeBlock } from '../shared/note.ts';
 import { MARKERS, renderRecall } from './block.ts';
-import { readBook } from './book.ts';
 import { summarise } from './claude.ts';
 import { defaultConfigPath, loadApiKey, loadConfig } from './config.ts';
+import { findBook, loadBookNotes, pickBook } from './pick.ts';
 
 export type RunResult = {
   date: string;
@@ -18,7 +18,7 @@ export type RunResult = {
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-export async function run(argv: string[], env: NodeJS.ProcessEnv, now: Date): Promise<RunResult> {
+export async function run(argv: string[], env: NodeJS.ProcessEnv, now: Date, random: () => number = Math.random): Promise<RunResult> {
   const { values } = parseArgs({
     args: argv,
     options: { book: { type: 'string' }, date: { type: 'string' }, config: { type: 'string' } },
@@ -26,7 +26,6 @@ export async function run(argv: string[], env: NodeJS.ProcessEnv, now: Date): Pr
 
   const date = values.date ?? londonDate(now).toISOString().slice(0, 10);
   if (!DATE_PATTERN.test(date)) throw new Error(`--date must be YYYY-MM-DD, got "${date}"`);
-  if (!values.book) throw new Error('Pass the book to recall with --book "<title>"');
 
   const config = await loadConfig(values.config ?? defaultConfigPath(env));
   const notePath = join(config.vaultPath, config.dailyFolder, `${date}.md`);
@@ -34,7 +33,8 @@ export async function run(argv: string[], env: NodeJS.ProcessEnv, now: Date): Pr
   if (!noteExists) throw new Error(`Daily note not found: ${notePath}`);
   const apiKey = loadApiKey(env);
 
-  const book = await readBook(config.vaultPath, config.booksFolder, values.book);
+  const notes = await loadBookNotes(config.vaultPath, config.booksFolder);
+  const book = values.book ? findBook(notes, values.book, config.booksFolder) : pickBook(notes, config, config.booksFolder, random);
   const learnings = await summarise({ apiKey, baseUrl: config.apiBaseUrl, model: config.model, book });
   const block = renderRecall({ title: book.title, learnings, words: book.words, model: config.model, now });
   const outcome = await writeBlock({ notePath, block, newNote: '', markers: MARKERS });

@@ -1,6 +1,3 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-
 export type Book = {
   title: string;
   author: string | null;
@@ -24,16 +21,3 @@ export function splitFrontmatter(text: string): { frontmatter: Record<string, st
 }
 
 export const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length;
-
-export async function readBook(vaultPath: string, booksFolder: string, title: string): Promise<Book> {
-  const path = join(booksFolder, `${title}.md`);
-  let text: string;
-  try {
-    text = await readFile(join(vaultPath, path), 'utf8');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    throw new Error(`No book note "${title}" in ${booksFolder}/`);
-  }
-  const { frontmatter, body } = splitFrontmatter(text);
-  return { title, author: frontmatter.author || null, path, body: body.trim(), words: countWords(body) };
-}

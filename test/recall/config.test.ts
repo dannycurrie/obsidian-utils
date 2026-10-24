@@ -46,7 +46,6 @@ test('a missing API key, book or daily note fails before calling Claude or writi
   await assert.rejects(run(args('Mindset', '2026-10-24'), {}, NOW), /No Anthropic API key; set BOOK_RECALL_API_KEY/);
   await assert.rejects(run(args('Nope', '2026-10-24'), { BOOK_RECALL_API_KEY: API_KEY }, NOW), /No book note "Nope" in Books\//);
   await assert.rejects(run(args('Mindset', '2026-10-23'), { BOOK_RECALL_API_KEY: API_KEY }, NOW), /Daily note not found: .*2026-10-23\.md/);
-  await assert.rejects(run(['--date', '2026-10-24', '--config', configPath], { BOOK_RECALL_API_KEY: API_KEY }, NOW), /--book/);
   await assert.rejects(run(args('Mindset', '24/10/2026'), { BOOK_RECALL_API_KEY: API_KEY }, NOW), /--date must be YYYY-MM-DD/);
 
   assert.equal(stub.requests.length, 0);

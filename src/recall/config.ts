@@ -10,6 +10,10 @@ export type RecallConfig = {
   model: string;
   /** Claude API base URL; only set to point at the local stub. */
   apiBaseUrl?: string;
+  /** `status` values a book note may have to be picked. */
+  statuses: string[];
+  /** Minimum body length, in words, for a book note to be picked. */
+  minWords: number;
 };
 
 export const DEFAULT_MODEL = 'claude-sonnet-5-5';
@@ -32,11 +36,19 @@ export async function loadConfig(path: string): Promise<RecallConfig> {
   for (const key of ['booksFolder', 'dailyFolder', 'model', 'apiBaseUrl'] as const) {
     if (raw[key] !== undefined && typeof raw[key] !== 'string') throw new Error(`Config ${path} "${key}" must be a string`);
   }
+  if (raw.statuses !== undefined && (!Array.isArray(raw.statuses) || raw.statuses.some((s) => typeof s !== 'string'))) {
+    throw new Error(`Config ${path} "statuses" must be an array of strings`);
+  }
+  if (raw.minWords !== undefined && (!Number.isInteger(raw.minWords) || (raw.minWords as number) < 0)) {
+    throw new Error(`Config ${path} "minWords" must be a whole number of 0 or more`);
+  }
 
   return {
     booksFolder: 'Books',
     dailyFolder: 'Daily',
     model: DEFAULT_MODEL,
+    statuses: ['Finished', 'Reading'],
+    minWords: 150,
     ...raw,
   } as RecallConfig;
 }
