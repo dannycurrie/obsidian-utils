@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template for the book-recall launchd user agent. Install it with `npm run launchd:install`,
+  which fills in the {{…}} placeholders with absolute paths; see README.md next to this file.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>{{LABEL}}</string>
+
+  <!-- launchd has no shell PATH, so node is an absolute path. The sh wrapper stamps each run in the log. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>echo "--- $(date '+%Y-%m-%d %H:%M:%S')"; exec "$0" "$1"</string>
+    <string>{{NODE}}</string>
+    <string>{{CLI}}</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>{{REPO}}</string>
+
+  <!-- 07:00 daily. If the laptop is asleep then, launchd runs the job once on wake. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>{{HOUR}}</integer>
+    <key>Minute</key>
+    <integer>{{MINUTE}}</integer>
+  </dict>
+
+  <!-- Also run when the agent loads: at login after a cold boot, and once on install. -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>{{LOG}}</string>
+  <key>StandardErrorPath</key>
+  <string>{{LOG}}</string>
+</dict>
+</plist>

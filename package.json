@@ -11,7 +11,9 @@
     "test": "node --test 'test/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "mock": "node mock/server.ts",
-    "contract": "node scripts/contract-check.ts"
+    "contract": "node scripts/contract-check.ts",
+    "launchd:install": "node scripts/launchd.ts install",
+    "launchd:uninstall": "node scripts/launchd.ts uninstall"
   },
   "engines": {
     "node": ">=24"
