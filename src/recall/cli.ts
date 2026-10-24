@@ -7,6 +7,7 @@ import { type WriteOutcome, writeBlock } from '../shared/note.ts';
 import { MARKERS, renderRecall } from './block.ts';
 import { summarise } from './claude.ts';
 import { defaultConfigPath, loadApiKey, loadConfig } from './config.ts';
+import { gatherLinkedNotes } from './links.ts';
 import { findBook, loadBookNotes, pickBook } from './pick.ts';
 
 export type RunResult = {
@@ -35,8 +36,12 @@ export async function run(argv: string[], env: NodeJS.ProcessEnv, now: Date, ran
 
   const notes = await loadBookNotes(config.vaultPath, config.booksFolder);
   const book = values.book ? findBook(notes, values.book, config.booksFolder) : pickBook(notes, config, config.booksFolder, random);
-  const learnings = await summarise({ apiKey, baseUrl: config.apiBaseUrl, model: config.model, book });
-  const block = renderRecall({ title: book.title, learnings, words: book.words, model: config.model, now });
+  const linked = config.linkedNotes
+    ? await gatherLinkedNotes({ vaultPath: config.vaultPath, book, maxLinkedWords: config.maxLinkedWords })
+    : [];
+  const learnings = await summarise({ apiKey, baseUrl: config.apiBaseUrl, model: config.model, book, linked });
+  const words = linked.reduce((total, part) => total + part.words, book.words);
+  const block = renderRecall({ title: book.title, learnings, words, linkedNotes: linked.length, model: config.model, now });
   const outcome = await writeBlock({ notePath, block, newNote: '', markers: MARKERS });
 
   return { date, title: book.title, notePath, outcome };

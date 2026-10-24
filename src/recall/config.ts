@@ -14,6 +14,10 @@ export type RecallConfig = {
   statuses: string[];
   /** Minimum body length, in words, for a book note to be picked. */
   minWords: number;
+  /** Include outgoing linked notes and incoming link passages in the prompt. */
+  linkedNotes: boolean;
+  /** Total cap on linked context; the book note itself is never cut for it. */
+  maxLinkedWords: number;
 };
 
 export const DEFAULT_MODEL = 'claude-sonnet-5-5';
@@ -42,6 +46,10 @@ export async function loadConfig(path: string): Promise<RecallConfig> {
   if (raw.minWords !== undefined && (!Number.isInteger(raw.minWords) || (raw.minWords as number) < 0)) {
     throw new Error(`Config ${path} "minWords" must be a whole number of 0 or more`);
   }
+  if (raw.linkedNotes !== undefined && typeof raw.linkedNotes !== 'boolean') throw new Error(`Config ${path} "linkedNotes" must be true or false`);
+  if (raw.maxLinkedWords !== undefined && !(Number.isInteger(raw.maxLinkedWords) && (raw.maxLinkedWords as number) >= 0)) {
+    throw new Error(`Config ${path} "maxLinkedWords" must be a whole number of words`);
+  }
 
   return {
     booksFolder: 'Books',
@@ -49,6 +57,8 @@ export async function loadConfig(path: string): Promise<RecallConfig> {
     model: DEFAULT_MODEL,
     statuses: ['Finished', 'Reading'],
     minWords: 150,
+    linkedNotes: true,
+    maxLinkedWords: 4000,
     ...raw,
   } as RecallConfig;
 }

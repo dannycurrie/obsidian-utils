@@ -4,13 +4,13 @@
 
 **Blocked by:** 02 — Tracer bullet
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Outgoing wikilinks (including `[[Note|alias]]` and heading links) resolve to notes; unresolved links are skipped silently
-- [ ] Incoming links send only the containing paragraph or list item plus its children, never the whole note
-- [ ] `Templates/`, `Archive/tana/`, frontmatter-only stubs and anything inside a `book-recall` block are never included
-- [ ] Mentions of the book in daily notes outside recall blocks are included
-- [ ] Linked context is capped by `maxLinkedWords` (default 4,000) and trimmed before the book note is ever cut
-- [ ] `linkedNotes: false` turns the feature off
-- [ ] The footer reads e.g. `from 1 book note and 2 linked notes (3,104 words)`
-- [ ] Tests cover a book with no links, one with outgoing links only, and one linked from a hub note
+- [x] Outgoing wikilinks (including `[[Note|alias]]` and heading links) resolve to notes; unresolved links are skipped silently
+- [x] Incoming links send only the containing paragraph or list item plus its children, never the whole note
+- [x] `Templates/`, `Archive/tana/`, frontmatter-only stubs and anything inside a `book-recall` block are never included
+- [x] Mentions of the book in daily notes outside recall blocks are included
+- [x] Linked context is capped by `maxLinkedWords` (default 4,000) and trimmed before the book note is ever cut
+- [x] `linkedNotes: false` turns the feature off
+- [x] The footer reads e.g. `from 1 book note and 2 linked notes (3,104 words)`
+- [x] Tests cover a book with no links, one with outgoing links only, and one linked from a hub note
