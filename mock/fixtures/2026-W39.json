@@ -2,6 +2,7 @@
   "from": "2026-09-21T00:00:00+01:00",
   "to": "2026-09-28T00:00:00+01:00",
   "timezone": "Europe/London",
+  "granularity": "day",
   "metrics": [
     {
       "id": "metric-kms-run",

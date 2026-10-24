@@ -9,7 +9,8 @@
   "scripts": {
     "test": "node --test 'test/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
-    "mock": "node mock/server.ts"
+    "mock": "node mock/server.ts",
+    "contract": "node scripts/contract-check.ts"
   },
   "engines": {
     "node": ">=24"

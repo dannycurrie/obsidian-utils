@@ -72,3 +72,13 @@ test('success prints the note path and a one-line summary, exiting 0', async () 
   assert.equal(result.code, 0, result.stderr);
   assert.equal(result.stdout, `${vault.notePath}\n2026-W41: added review — 7 metrics, 1 with no entries\n`);
 });
+
+test('an API that ignores granularity=day fails instead of reading weekly totals as 1/7', async () => {
+  // W38's fixture has one weekly period per metric, as the deployed API returns today.
+  const vault = await makeVault({ baseUrl: mock.baseUrl, week: '2026-W38', noteContent: '# Plan\n' });
+  await assertFailsCleanly({
+    args: ['--week', '2026-W38'],
+    vault,
+    stderr: /did not apply granularity=day \(got no granularity field\)/,
+  });
+});

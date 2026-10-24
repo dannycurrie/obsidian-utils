@@ -24,6 +24,8 @@ export type MetricsResponse = {
   from: string;
   to: string;
   timezone: string;
+  /** Echoed by the API since granularity support; absent from older deployments. */
+  granularity?: 'period' | 'day';
   metrics: Metric[];
 };
 
@@ -32,11 +34,14 @@ export async function fetchMetrics(options: {
   token: string;
   from: string;
   to: string;
+  /** `day` (the default) is what reviews need; `period` is only for contract checks. */
+  granularity?: 'day' | 'period';
 }): Promise<MetricsResponse> {
+  const granularity = options.granularity ?? 'day';
   const url = new URL('/v1/metrics', options.baseUrl);
   url.searchParams.set('from', options.from);
   url.searchParams.set('to', options.to);
-  url.searchParams.set('granularity', 'day');
+  url.searchParams.set('granularity', granularity);
 
   let response: Response;
   try {
@@ -54,5 +59,30 @@ export async function fetchMetrics(options: {
     const detail = body?.error?.message ? `: ${body.error.message}` : '';
     throw new Error(`Tracker API returned ${response.status}${detail}`);
   }
-  return (await response.json()) as MetricsResponse;
+  const body = (await response.json()) as MetricsResponse;
+  if (granularity === 'day') assertDailyPeriods(body);
+  return body;
+}
+
+const MAX_DAY_MS = 25 * 60 * 60 * 1000; // the clocks-back Sunday is 25 hours
+
+/**
+ * Days are counted from per-day periods. An API that ignores granularity=day sends one weekly period
+ * instead, which would silently read as 1/7, so refuse it. Checklists are scored weekly by design.
+ */
+export function assertDailyPeriods(response: MetricsResponse): void {
+  if (response.granularity !== 'day') {
+    throw new Error(
+      `Tracker API did not apply granularity=day (got ${response.granularity ?? 'no granularity field'}); it needs the daily-granularity release`,
+    );
+  }
+  for (const metric of response.metrics) {
+    if (metric.type === 'checklist') continue;
+    const long = metric.periods.find((p) => new Date(p.end).getTime() - new Date(p.start).getTime() > MAX_DAY_MS);
+    if (long) {
+      throw new Error(
+        `Tracker API returned a ${long.start} – ${long.end} period for "${metric.name}", not daily ones; it does not support granularity=day`,
+      );
+    }
+  }
 }
