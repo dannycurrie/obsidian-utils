@@ -4,10 +4,10 @@
 
 **Blocked by:** 03 — Random pick from eligible books
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Books linked from `book-recall` blocks in the previous `noRepeatDays` daily notes are excluded from the pick
-- [ ] Links elsewhere in a daily note (outside the markers) do not count as "shown"
-- [ ] Missing daily notes in the window are skipped, not treated as errors
-- [ ] When every eligible book is inside the window, the least recently shown book is picked
-- [ ] Over 10 consecutive seeded test days with 11+ eligible books, no book repeats
+- [x] Books linked from `book-recall` blocks in the previous `noRepeatDays` daily notes are excluded from the pick
+- [x] Links elsewhere in a daily note (outside the markers) do not count as "shown"
+- [x] Missing daily notes in the window are skipped, not treated as errors
+- [x] When every eligible book is inside the window, the least recently shown book is picked
+- [x] Over 10 consecutive seeded test days with 11+ eligible books, no book repeats

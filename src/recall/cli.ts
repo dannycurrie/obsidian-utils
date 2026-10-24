@@ -7,8 +7,9 @@ import { confirmBlock, upsertBlock, type WriteOutcome, writeBlock } from '../sha
 import { MARKERS, renderRecall } from './block.ts';
 import { type RetryOptions, summarise } from './claude.ts';
 import { defaultConfigPath, loadApiKey, loadConfig } from './config.ts';
+import { pickUnshown, recentlyShown } from './history.ts';
 import { gatherLinkedNotes } from './links.ts';
-import { findBook, loadBookNotes, pickBook } from './pick.ts';
+import { findBook, loadBookNotes } from './pick.ts';
 
 export type RunResult = {
   date: string;
@@ -49,7 +50,10 @@ export async function run(
   const apiKey = loadApiKey(env);
 
   const notes = await loadBookNotes(config.vaultPath, config.booksFolder);
-  const book = values.book ? findBook(notes, values.book, config.booksFolder) : pickBook(notes, config, config.booksFolder, random);
+  // The no-repeat window only applies to the random pick; `--book` recalls any note.
+  const book = values.book
+    ? findBook(notes, values.book, config.booksFolder)
+    : pickUnshown(notes, config, config.booksFolder, random, await recentlyShown(dailyDir, date, config.noRepeatDays));
   const linked = config.linkedNotes
     ? await gatherLinkedNotes({ vaultPath: config.vaultPath, book, maxLinkedWords: config.maxLinkedWords })
     : [];

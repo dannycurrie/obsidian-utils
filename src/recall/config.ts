@@ -18,6 +18,8 @@ export type RecallConfig = {
   linkedNotes: boolean;
   /** Total cap on linked context; the book note itself is never cut for it. */
   maxLinkedWords: number;
+  /** A book shown in a recall block in the previous N daily notes is not picked; 0 turns the window off. */
+  noRepeatDays: number;
 };
 
 export const DEFAULT_MODEL = 'claude-sonnet-5-5';
@@ -50,6 +52,9 @@ export async function loadConfig(path: string): Promise<RecallConfig> {
   if (raw.maxLinkedWords !== undefined && !(Number.isInteger(raw.maxLinkedWords) && (raw.maxLinkedWords as number) >= 0)) {
     throw new Error(`Config ${path} "maxLinkedWords" must be a whole number of words`);
   }
+  if (raw.noRepeatDays !== undefined && !(Number.isInteger(raw.noRepeatDays) && (raw.noRepeatDays as number) >= 0)) {
+    throw new Error(`Config ${path} "noRepeatDays" must be a whole number of 0 or more`);
+  }
 
   return {
     booksFolder: 'Books',
@@ -59,6 +64,7 @@ export async function loadConfig(path: string): Promise<RecallConfig> {
     minWords: 150,
     linkedNotes: true,
     maxLinkedWords: 4000,
+    noRepeatDays: 10,
     ...raw,
   } as RecallConfig;
 }
