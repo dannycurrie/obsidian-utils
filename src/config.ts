@@ -1,6 +1,7 @@
-import { readFile, realpath } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
+import { isLocalUrl, isSamePath } from './shared/guard.ts';
 import { type KeychainReader, type SecretSource, assertNoSecrets, keychainReader, loadSecret } from './shared/secrets.ts';
 
 export type { KeychainReader };
@@ -74,16 +75,10 @@ export function loadToken(env: NodeJS.ProcessEnv, keychain: KeychainReader): Pro
   return loadSecret(env, TRACKER_TOKEN, keychain);
 }
 
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
-
-async function canonicalPath(path: string): Promise<string> {
-  return realpath(path).catch(() => resolve(path));
-}
-
 /** Placeholder numbers from the mock must never land in the vault reviews are really read in. */
 export async function assertSafeTarget(config: Config): Promise<void> {
-  if (!LOCAL_HOSTS.has(new URL(config.baseUrl).hostname)) return;
-  if ((await canonicalPath(config.vaultPath)) === (await canonicalPath(config.realVault))) {
+  if (!isLocalUrl(config.baseUrl)) return;
+  if (await isSamePath(config.vaultPath, config.realVault)) {
     throw new Error(
       `Refusing to write mock data into the real vault (${config.realVault}); point vaultPath at a test copy while baseUrl is ${config.baseUrl}`,
     );

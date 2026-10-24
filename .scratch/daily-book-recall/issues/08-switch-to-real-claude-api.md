@@ -4,11 +4,11 @@
 
 **Blocked by:** 02 — Tracer bullet, 07 — Failures stop before writing
 
-**Status:** ready-for-agent
+**Status:** awaiting manual check (last criterion)
 
-- [ ] With no env var set, the key is read from the Keychain; with neither, the error tells you the exact `security add-generic-password` command to run
-- [ ] The request asks for structured output of exactly 5 strings; a reply of the wrong shape goes through ticket 07's retry path
-- [ ] The prompt includes the brief's rules and labels each part of the context with its source path
-- [ ] With a localhost Claude base URL, writing to `realVault` is refused before any call
-- [ ] A safety refusal (`stop_reason: "refusal"`) gives a clear error instead of a JSON parse failure; consider the API's server-side `fallbacks: "default"` option so a refused request is re-run on a fallback model
+- [x] With no env var set, the key is read from the Keychain; with neither, the error tells you the exact `security add-generic-password` command to run
+- [x] The request asks for structured output of exactly 5 strings; a reply of the wrong shape goes through ticket 07's retry path
+- [x] The prompt includes the brief's rules and labels each part of the context with its source path
+- [x] With a localhost Claude base URL, writing to `realVault` is refused before any call
+- [x] A safety refusal (`stop_reason: "refusal"`) gives a clear error instead of a JSON parse failure; consider the API's server-side `fallbacks: "default"` option so a refused request is re-run on a fallback model
 - [ ] `book-recall --dry-run --book "<title>"` against the real API on 3 real books gives bullets you recognise from your notes (manual check)

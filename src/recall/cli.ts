@@ -3,9 +3,10 @@ import { mkdir, readFile, stat } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { confirmBlock, type WriteOutcome, writeBlock } from '../shared/note.ts';
+import type { KeychainReader } from '../shared/secrets.ts';
 import { MARKERS, renderRecall } from './block.ts';
 import { type RetryOptions, summarise } from './claude.ts';
-import { defaultConfigPath, loadApiKey, loadConfig, type RecallConfig } from './config.ts';
+import { assertSafeTarget, defaultConfigPath, loadApiKey, loadConfig, type RecallConfig, readKeychain } from './config.ts';
 import { currentRecall, dailyNoteName, formatDate, newDailyNote, todayIn } from './daily.ts';
 import { pickUnshown, recentlyShown } from './history.ts';
 import { gatherLinkedNotes } from './links.ts';
@@ -28,13 +29,16 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const isDirectory = (path: string) => stat(path).then((s) => s.isDirectory(), () => false);
 
-/** `random` and `retry` are test seams (the pick, and the Claude retry wait and timeout), not user-facing options. */
+/** Test seams for the Claude retry wait and timeout and for the Keychain, not user-facing options. */
+export type RunSeams = RetryOptions & { keychain?: KeychainReader };
+
+/** `random` and `seams` are test seams (the pick; the Claude retry wait, timeout and Keychain), not user-facing options. */
 export async function run(
   argv: string[],
   env: NodeJS.ProcessEnv,
   now: Date,
   random: () => number = Math.random,
-  retry: RetryOptions = {},
+  { keychain = readKeychain, ...retry }: RunSeams = {},
 ): Promise<RunResult> {
   const { values } = parseArgs({
     args: argv,
@@ -52,6 +56,7 @@ export async function run(
   if (values.date !== undefined && !DATE_PATTERN.test(values.date)) throw new Error(`--date must be YYYY-MM-DD, got "${values.date}"`);
 
   const config = await loadConfig(values.config ?? defaultConfigPath(env));
+  await assertSafeTarget(config);
   const date = values.date ?? todayIn(config.timezone, now);
   // Everything that can fail without Claude is checked before the call, so such a failure costs no request.
   if (!(await isDirectory(config.vaultPath))) throw new Error(`Vault not found: ${config.vaultPath}`);
@@ -69,7 +74,7 @@ export async function run(
   if (!current && replacing) throw new Error(`No book-recall block in ${notePath} to ${replacing}`);
   if (replacing === 'regenerate' && !current?.title) throw new Error(`Can't read the book from the book-recall block in ${notePath}`);
   const newNote = existing === null ? await newDailyNote(config.vaultPath, config.dailyTemplate, date, basename(notePath, '.md')) : '';
-  const apiKey = loadApiKey(env);
+  const apiKey = await loadApiKey(env, keychain);
 
   const notes = await loadBookNotes(config.vaultPath, config.booksFolder);
   // The no-repeat window only applies to the random pick (including --reroll); a named book is recalled as is.
@@ -79,9 +84,9 @@ export async function run(
   const linked = config.linkedNotes
     ? await gatherLinkedNotes({ vaultPath: config.vaultPath, book, maxLinkedWords: config.maxLinkedWords })
     : [];
-  const learnings = await summarise({ apiKey, baseUrl: config.apiBaseUrl, model: config.model, book, linked, ...retry });
+  const { learnings, model } = await summarise({ apiKey, baseUrl: config.apiBaseUrl, model: config.model, book, linked, ...retry });
   const words = linked.reduce((total, part) => total + part.words, book.words);
-  const block = renderRecall({ title: book.title, learnings, words, linkedNotes: linked.length, model: config.model, now, timeZone: config.timezone });
+  const block = renderRecall({ title: book.title, learnings, words, linkedNotes: linked.length, model, now, timeZone: config.timezone });
   if (values['dry-run']) return { date, title: book.title, notePath, outcome: 'dry-run', block };
   if (existing === null) await mkdir(dirname(notePath), { recursive: true }); // dailyFormat may contain subfolders
   const outcome = await writeBlock({ notePath, block, newNote, markers: MARKERS });

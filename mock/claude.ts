@@ -1,5 +1,5 @@
 // Local stand-in for the Claude Messages API (POST /v1/messages), returning canned learnings as structured output.
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { createServer, type IncomingHttpHeaders, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 
 export const CANNED_LEARNINGS = [
   'Canned learning one.',
@@ -16,12 +16,15 @@ export const CANNED_LEARNINGS = [
  * - `hang`: accept the request and never answer, so the client times out
  * - `learnings`: a reply whose JSON holds this value (any shape, e.g. 4 items or empty strings)
  * - `text`: a reply with this raw text (e.g. a preamble that isn't JSON)
+ * - `refusal`: a safety refusal (`stop_reason: "refusal"`) with this `stop_details.category`
+ * `model` on a reply stands in for the model that answered, e.g. after a refusal fallback.
  */
 export type StubBehaviour =
   | { status: number; type?: string; message?: string }
   | { hang: true }
-  | { learnings: unknown; stop_reason?: string }
-  | { text: string; stop_reason?: string };
+  | { learnings: unknown; stop_reason?: string; model?: string }
+  | { text: string; stop_reason?: string; model?: string }
+  | { refusal: string | null };
 
 const ERROR_TYPES: Record<number, string> = {
   401: 'authentication_error',
@@ -43,14 +46,16 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
 
 /**
  * `requests` collects every request body sent with the right key (scripted failures included),
- * so its length is the number of requests made.
+ * so its length is the number of requests made; `headers` holds each one's headers, in the same order.
  */
 export function createClaudeStub(options: { apiKey: string; learnings?: string[] }): {
   server: Server;
   requests: Record<string, unknown>[];
+  headers: IncomingHttpHeaders[];
   script: StubBehaviour[];
 } {
   const requests: Record<string, unknown>[] = [];
+  const headers: IncomingHttpHeaders[] = [];
   const script: StubBehaviour[] = [];
   const server = createServer(async (req, res) => {
     if (req.method !== 'POST' || new URL(req.url ?? '/', 'http://localhost').pathname !== '/v1/messages') {
@@ -63,26 +68,31 @@ export function createClaudeStub(options: { apiKey: string; learnings?: string[]
     }
     const body = await readJson(req);
     requests.push(body);
+    headers.push(req.headers);
     const behaviour: StubBehaviour = script.shift() ?? { learnings: options.learnings ?? CANNED_LEARNINGS };
     if ('hang' in behaviour) return;
     if ('status' in behaviour) {
       const type = behaviour.type ?? ERROR_TYPES[behaviour.status] ?? 'api_error';
       return sendError(res, behaviour.status, type, behaviour.message ?? `stub ${type}`);
     }
-    const text = 'text' in behaviour ? behaviour.text : JSON.stringify({ learnings: behaviour.learnings });
+    const refusal = 'refusal' in behaviour;
+    const text = refusal ? '' : 'text' in behaviour ? behaviour.text : JSON.stringify({ learnings: behaviour.learnings });
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
         id: `msg_stub_${requests.length}`,
         type: 'message',
         role: 'assistant',
-        model: body.model,
-        content: [{ type: 'text', text }],
-        stop_reason: behaviour.stop_reason ?? 'end_turn',
+        model: (!refusal && behaviour.model) || body.model,
+        content: refusal ? [] : [{ type: 'text', text }],
+        stop_reason: refusal ? 'refusal' : (behaviour.stop_reason ?? 'end_turn'),
+        stop_details: refusal
+          ? { type: 'refusal', category: behaviour.refusal, explanation: 'stub refusal' }
+          : null,
         stop_sequence: null,
         usage: { input_tokens: 100, output_tokens: 50 },
       }),
     );
   });
-  return { server, requests, script };
+  return { server, requests, headers, script };
 }

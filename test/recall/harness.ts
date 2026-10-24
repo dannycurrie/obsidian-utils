@@ -11,18 +11,19 @@ const CLI = join(import.meta.dirname, '..', '..', 'src', 'recall', 'cli.ts');
 
 /**
  * Starts the Claude stub for the calling test file; read `stub.baseUrl` inside tests.
- * `stub.requests` holds the bodies the current test sent.
+ * `stub.requests` holds the bodies the current test sent, and `stub.headers` their headers.
  */
 export function useClaudeStub(options: { learnings?: string[] } = {}) {
-  const { server, requests, script } = createClaudeStub({ apiKey: API_KEY, ...options });
+  const { server, requests, headers, script } = createClaudeStub({ apiKey: API_KEY, ...options });
   // `stub.script` queues per-request behaviours (errors, hangs, bad replies) for the current test.
-  const stub = { baseUrl: '', requests, script };
+  const stub = { baseUrl: '', requests, headers, script };
   before(async () => {
     await new Promise<void>((resolve) => server.listen(0, resolve));
     stub.baseUrl = `http://localhost:${(server.address() as AddressInfo).port}`;
   });
   beforeEach(() => {
     requests.length = 0;
+    headers.length = 0;
     script.length = 0;
   });
   after(() => {

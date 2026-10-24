@@ -27,15 +27,18 @@ export function buildPrompt(book: Book, linked: LinkedPart[] = []): string {
   return `Book: ${byline}\n\n${notes.join('\n\n')}`;
 }
 
+/** The parts of a Messages API reply this module reads; both the GA and beta message types fit it. */
+type Reply = { content: ReadonlyArray<{ type: string }>; stop_reason: string | null };
+
 /** A reply that arrived but is not exactly the learnings asked for. */
 export class BadReplyError extends Error {}
 
-function replyText(message: Anthropic.Message): string | undefined {
-  return message.content.find((block): block is Anthropic.TextBlock => block.type === 'text')?.text;
+function replyText(message: Reply): string | undefined {
+  return (message.content.find((block) => block.type === 'text') as { text: string } | undefined)?.text;
 }
 
 /** The count is checked here rather than trusted to the schema. Throws a `BadReplyError` saying what is wrong. */
-export function parseLearnings(message: Anthropic.Message): string[] {
+export function parseLearnings(message: Reply): string[] {
   if (message.stop_reason === 'max_tokens') throw new BadReplyError("Claude's reply was cut off at max_tokens");
   let learnings: unknown;
   try {
@@ -68,6 +71,12 @@ export type RetryOptions = {
 export const DEFAULT_RETRY_DELAY_MS = 1000;
 export const DEFAULT_TIMEOUT_MS = 60_000;
 
+/**
+ * Models that accept the server-side refusal fallback (`fallbacks: "default"`): a request the model declines on
+ * safety grounds is re-run on a fallback model inside the same call. Other models (e.g. Haiku) have none.
+ */
+const FALLBACK_MODELS = new Set(['claude-fable-5-1', 'claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5']);
+
 /** Failures worth one more try: unreachable, timeout, rejected key (the brief asks for it), rate limit, server error. */
 function isRetryable(error: unknown): boolean {
   if (error instanceof Anthropic.APIConnectionError) return true;
@@ -87,7 +96,7 @@ function describeRequestError(error: unknown, baseURL: string, timeoutMs: number
     return new Error(`Could not reach the Claude API at ${baseURL}${code ? ` (${code})` : ''}`);
   }
   if (error instanceof Anthropic.AuthenticationError) {
-    return new Error('Claude API rejected the key (401); check BOOK_RECALL_API_KEY');
+    return new Error('Claude API rejected the key (401); check the Keychain item or BOOK_RECALL_API_KEY');
   }
   if (error instanceof Anthropic.RateLimitError) {
     return new Error(`Claude API rate limit hit (429): ${error.message}`);
@@ -103,27 +112,32 @@ const RETRY_INSTRUCTION = `Return exactly ${LEARNING_COUNT} learnings as JSON, e
 /**
  * Asks Claude for the learnings. A failed request (see `isRetryable`) is retried once after a short wait,
  * and a bad reply is retried once with the problem sent back to the model; after that it throws.
- * The SDK's own retries are off so every attempt and wait is decided here.
+ * A safety refusal is not retried. The SDK's own retries are off so every attempt and wait is decided here.
+ * `model` is the model that answered, which differs from `options.model` when a refusal fallback ran.
  */
 export async function summarise(
   options: { apiKey: string; baseUrl?: string; model: string; book: Book; linked?: LinkedPart[] } & RetryOptions,
-): Promise<string[]> {
+): Promise<{ learnings: string[]; model: string }> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const retryDelayMs = options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
   const client = new Anthropic({ apiKey: options.apiKey, baseURL: options.baseUrl, maxRetries: 0, timeout: timeoutMs });
-  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: buildPrompt(options.book, options.linked) }];
+  const fallback = FALLBACK_MODELS.has(options.model)
+    ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }
+    : {};
+  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: buildPrompt(options.book, options.linked) }];
   let requestRetried = false;
   let replyRetried = false;
 
   for (;;) {
-    let message: Anthropic.Message;
+    let message: Anthropic.Beta.BetaMessage;
     try {
-      message = await client.messages.create({
+      message = await client.beta.messages.create({
         model: options.model,
         max_tokens: 16000,
         system: SYSTEM,
         messages,
         output_config: { format: { type: 'json_schema', schema: LEARNINGS_SCHEMA } },
+        ...fallback,
       });
     } catch (error) {
       const described = describeRequestError(error, client.baseURL, timeoutMs);
@@ -134,8 +148,14 @@ export async function summarise(
       continue;
     }
 
+    if (message.stop_reason === 'refusal') {
+      const category = message.stop_details?.category;
+      throw new Error(
+        `Claude declined to summarise "${options.book.title}" (safety refusal${category ? `, category ${category}` : ''}); try --reroll or another --book`,
+      );
+    }
     try {
-      return parseLearnings(message);
+      return { learnings: parseLearnings(message), model: message.model };
     } catch (error) {
       if (!(error instanceof BadReplyError)) throw error;
       if (replyRetried) throw new Error(`${error.message} (after retrying once)`);

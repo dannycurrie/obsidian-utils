@@ -11,6 +11,7 @@ import { API_KEY, makeRecallVault, useClaudeStub } from './harness.ts';
 
 const stub = useClaudeStub();
 const NOW = new Date('2026-10-24T06:00:00Z');
+const noKeychain = async () => null;
 const BOOK = '---\ntype: book\nstatus: Finished\n---\n## Notes\n\n- One idea\n';
 
 test('config defaults to ~/.config/book-recall/config.json, overridable by env', () => {
@@ -43,7 +44,10 @@ test('a missing API key, book or daily template fails before calling Claude or w
   const before = await snapshot(dir);
   const args = (book: string, date: string) => ['--book', book, '--date', date, '--config', configPath];
 
-  await assert.rejects(run(args('Mindset', '2026-10-24'), {}, NOW), /No Anthropic API key; set BOOK_RECALL_API_KEY/);
+  await assert.rejects(
+    run(args('Mindset', '2026-10-24'), {}, NOW, Math.random, { keychain: noKeychain }),
+    /No Anthropic API key\. Add it to the Keychain with: security add-generic-password -s book-recall -a anthropic-api -w <token>/,
+  );
   await assert.rejects(run(args('Nope', '2026-10-24'), { BOOK_RECALL_API_KEY: API_KEY }, NOW), /No book note "Nope" in Books\//);
   await assert.rejects(run(args('Mindset', '2026-10-23'), { BOOK_RECALL_API_KEY: API_KEY }, NOW), /Daily template not found: .*Templates\/daily\.md/);
   await assert.rejects(run(args('Mindset', '24/10/2026'), { BOOK_RECALL_API_KEY: API_KEY }, NOW), /--date must be YYYY-MM-DD/);

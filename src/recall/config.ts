@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { assertNoSecrets } from '../shared/secrets.ts';
+import { isLocalUrl, isSamePath } from '../shared/guard.ts';
+import { type KeychainReader, type SecretSource, assertNoSecrets, keychainReader, loadSecret } from '../shared/secrets.ts';
 import { assertTimeZone } from './daily.ts';
 
 export type RecallConfig = {
@@ -17,6 +18,8 @@ export type RecallConfig = {
   model: string;
   /** Claude API base URL; only set to point at the local stub. */
   apiBaseUrl?: string;
+  /** The vault recalls are really read in; never written to while `apiBaseUrl` points at the local stub. */
+  realVault?: string;
   /** `status` values a book note may have to be picked. */
   statuses: string[];
   /** Minimum body length, in words, for a book note to be picked. */
@@ -44,9 +47,9 @@ export async function loadConfig(path: string): Promise<RecallConfig> {
   }
   const raw = JSON.parse(text) as Record<string, unknown>;
 
-  assertNoSecrets(raw, path, 'set the Anthropic API key in BOOK_RECALL_API_KEY');
+  assertNoSecrets(raw, path, 'store the Anthropic API key in the Keychain');
   if (typeof raw.vaultPath !== 'string') throw new Error(`Config ${path} is missing "vaultPath"`);
-  for (const key of ['booksFolder', 'dailyFolder', 'dailyFormat', 'dailyTemplate', 'timezone', 'model', 'apiBaseUrl'] as const) {
+  for (const key of ['booksFolder', 'dailyFolder', 'dailyFormat', 'dailyTemplate', 'timezone', 'model', 'apiBaseUrl', 'realVault'] as const) {
     if (raw[key] !== undefined && typeof raw[key] !== 'string') throw new Error(`Config ${path} "${key}" must be a string`);
   }
   if (raw.statuses !== undefined && (!Array.isArray(raw.statuses) || raw.statuses.some((s) => typeof s !== 'string'))) {
@@ -102,8 +105,26 @@ async function vaultDailySettings(vaultPath: string): Promise<Partial<RecallConf
   return result;
 }
 
-export function loadApiKey(env: NodeJS.ProcessEnv): string {
-  const key = env.BOOK_RECALL_API_KEY;
-  if (!key) throw new Error('No Anthropic API key; set BOOK_RECALL_API_KEY');
-  return key;
+const API_KEY: SecretSource = {
+  label: 'Anthropic API key',
+  envVar: 'BOOK_RECALL_API_KEY',
+  service: 'book-recall',
+  account: 'anthropic-api',
+};
+
+export const readKeychain: KeychainReader = keychainReader(API_KEY.service, API_KEY.account);
+
+/** BOOK_RECALL_API_KEY wins; otherwise the macOS Keychain. */
+export function loadApiKey(env: NodeJS.ProcessEnv, keychain: KeychainReader = readKeychain): Promise<string> {
+  return loadSecret(env, API_KEY, keychain);
+}
+
+/** Canned learnings from the local stub must never land in the vault recalls are really read in. */
+export async function assertSafeTarget(config: RecallConfig): Promise<void> {
+  if (!config.apiBaseUrl || !config.realVault || !isLocalUrl(config.apiBaseUrl)) return;
+  if (await isSamePath(config.vaultPath, config.realVault)) {
+    throw new Error(
+      `Refusing to write stub learnings into the real vault (${config.realVault}); point vaultPath at a test copy while apiBaseUrl is ${config.apiBaseUrl}`,
+    );
+  }
 }
