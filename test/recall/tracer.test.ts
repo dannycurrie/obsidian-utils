@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { CANNED_LEARNINGS } from '../../mock/claude.ts';
 import { snapshot } from '../harness.ts';
-import { API_KEY, makeRecallVault, recallBlock, recallEnv, runRecall, useClaudeStub } from './harness.ts';
+import { API_KEY, makeRecallVault, recallEnv, runRecall, useClaudeStub } from './harness.ts';
 
 const stub = useClaudeStub();
 
@@ -24,8 +24,8 @@ const PHOENIX = [
 
 const DAILY = '---\ntype: daily\ncreated: 2026-10-24\n---\n## Actions\n\n## Notes\n\n- Wrote by hand before the run\n';
 
-test('writes a recall of the named book to the end of the existing daily note', async () => {
-  const { configPath, dailyPath } = await makeRecallVault({
+test("writes a recall of the named book to the day's recall note, leaving the daily note untouched", async () => {
+  const { configPath, dailyPath, recallPath } = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: { 'The Phoenix Project': PHOENIX },
     daily: { '2026-10-24': DAILY },
@@ -37,12 +37,16 @@ test('writes a recall of the named book to the end of the existing daily note', 
   );
 
   assert.equal(code, 0, stderr);
-  assert.deepEqual(stdout.trim().split('\n'), [dailyPath('2026-10-24'), '2026-10-24: added recall — The Phoenix Project']);
-  const note = await readFile(dailyPath('2026-10-24'), 'utf8');
-  assert.ok(note.startsWith(`${DAILY}\n<!-- book-recall:start -->`), 'existing note content is untouched');
+  assert.deepEqual(stdout.trim().split('\n'), [recallPath('2026-10-24'), '2026-10-24: added recall — The Phoenix Project']);
+  assert.equal(await readFile(dailyPath('2026-10-24'), 'utf8'), DAILY, 'the daily note is never written');
   assert.equal(
-    recallBlock(note),
+    (await readFile(recallPath('2026-10-24'), 'utf8')).replace(/_Generated \d{4}-\d{2}-\d{2} \d{2}:\d{2} /, '_Generated <time> '),
     [
+      '---',
+      'type: recall',
+      'created: 2026-10-24',
+      '---',
+      '',
       '<!-- book-recall:start -->',
       '## Book recall — [[The Phoenix Project]]',
       '',
@@ -53,6 +57,37 @@ test('writes a recall of the named book to the end of the existing daily note', 
       '',
     ].join('\n'),
   );
+});
+
+test('a day with no daily note still gets its recall note, and no daily note is created', async () => {
+  const { configPath, dailyPath, recallPath } = await makeRecallVault({
+    baseUrl: stub.baseUrl,
+    books: { 'The Phoenix Project': PHOENIX },
+  });
+
+  const { code, stderr } = await runRecall(['--book', 'The Phoenix Project', '--date', '2026-10-24'], recallEnv(configPath));
+
+  assert.equal(code, 0, stderr);
+  assert.match(await readFile(recallPath('2026-10-24'), 'utf8'), /## Book recall — \[\[The Phoenix Project\]\]/);
+  await assert.rejects(readFile(dailyPath('2026-10-24'), 'utf8'), { code: 'ENOENT' });
+});
+
+test('the CLI suggests embedding the recall notes until the daily template does', async () => {
+  const files = (template: string) => ({ 'Templates/daily.md': template });
+  const without = await makeRecallVault({ baseUrl: stub.baseUrl, books: { 'The Phoenix Project': PHOENIX }, files: files('## Notes\n') });
+  const first = await runRecall(['--book', 'The Phoenix Project', '--date', '2026-10-24'], recallEnv(without.configPath));
+  assert.equal(
+    first.stdout.trim().split('\n').at(-1),
+    'Tip: add ![[Daily/Recall/{{date:YYYY-MM-DD}}]] to Templates/daily.md to show recalls in your daily notes',
+  );
+
+  const withEmbed = await makeRecallVault({
+    baseUrl: stub.baseUrl,
+    books: { 'The Phoenix Project': PHOENIX },
+    files: files('## Notes\n\n![[Daily/Recall/{{date:YYYY-MM-DD}}]]\n'),
+  });
+  const second = await runRecall(['--book', 'The Phoenix Project', '--date', '2026-10-24'], recallEnv(withEmbed.configPath));
+  assert.doesNotMatch(second.stdout, /Tip:/);
 });
 
 test('sends the book body without frontmatter, with title, author and path, asking for structured output', async () => {

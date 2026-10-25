@@ -20,11 +20,12 @@ const FAST = { retryDelayMs: 10, timeoutMs: 300 };
 
 type Vault = Awaited<ReturnType<typeof makeRecallVault>>;
 
-async function vault(options: { daily?: string; baseUrl?: string } = {}): Promise<Vault> {
+async function vault(options: { recall?: string; baseUrl?: string } = {}): Promise<Vault> {
   return makeRecallVault({
     baseUrl: options.baseUrl ?? stub.baseUrl,
     books: { 'The Phoenix Project': BOOK },
-    daily: { '2026-10-24': options.daily ?? DAILY },
+    daily: { '2026-10-24': DAILY },
+    recall: options.recall === undefined ? {} : { '2026-10-24': options.recall },
   });
 }
 
@@ -38,9 +39,9 @@ async function assertFailsCleanly(v: Vault, error: RegExp, requests: number) {
 
 async function assertSucceeds(v: Vault, requests: number) {
   const result = await run(ARGS, recallEnv(v.configPath), NOW, Math.random, FAST);
-  assert.equal(result.outcome, 'appended');
+  assert.equal(result.outcome, 'created');
   assert.equal(stub.requests.length, requests, 'request count');
-  const note = await readFile(v.dailyPath('2026-10-24'), 'utf8');
+  const note = await readFile(v.recallPath('2026-10-24'), 'utf8');
   for (const learning of CANNED_LEARNINGS) assert.ok(note.includes(`- ${learning}\n`));
 }
 
@@ -117,13 +118,14 @@ test('an unreachable API is retried, then fails naming the cause', async () => {
   );
 });
 
-for (const [name, daily] of [
-  ['an unmatched start marker', `${DAILY}\n<!-- book-recall:start -->\nold\n`],
-  ['an end marker before the start', `${DAILY}\n<!-- book-recall:end -->\n<!-- book-recall:start -->\n`],
-  ['repeated markers', `${DAILY}\n<!-- book-recall:start -->\na\n<!-- book-recall:end -->\n<!-- book-recall:start -->\nb\n<!-- book-recall:end -->\n`],
+// Broken markers in the day's recall note (e.g. after a hand edit).
+for (const [name, recall] of [
+  ['an unmatched start marker', '---\ntype: recall\n---\n\n<!-- book-recall:start -->\nold\n'],
+  ['an end marker before the start', '<!-- book-recall:end -->\n<!-- book-recall:start -->\n'],
+  ['repeated markers', '<!-- book-recall:start -->\na\n<!-- book-recall:end -->\n<!-- book-recall:start -->\nb\n<!-- book-recall:end -->\n'],
 ]) {
   test(`${name} fails with a fix-by-hand message before calling Claude`, async () => {
-    await assertFailsCleanly(await vault({ daily }), /unmatched or repeated book-recall markers; fix them by hand/, 0);
+    await assertFailsCleanly(await vault({ recall }), /unmatched or repeated book-recall markers; fix them by hand/, 0);
   });
 }
 

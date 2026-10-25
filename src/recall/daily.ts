@@ -57,32 +57,27 @@ export function formatDate(format: string, date: string): string {
  * Renders an Obsidian core template for a daily note: `{{date}}` (YYYY-MM-DD), `{{date:FORMAT}}` and `{{title}}`
  * (the note name). Any other `{{…}}` is left as written.
  */
-export function renderTemplate(template: string, date: string, title: string): string {
-  return template.replace(/\{\{\s*(date|title)\s*(?::([^}]*))?\}\}/g, (_, name: string, format?: string) =>
-    name === 'title' ? title : formatDate(format?.trim() || 'YYYY-MM-DD', date),
-  );
+/** Vault-relative note path for a date in a folder, named like the daily notes, e.g. `Daily/Recall/2026-10-24.md`. */
+export function datedNoteName(folder: string, dailyFormat: string, date: string): string {
+  return join(folder, `${formatDate(dailyFormat, date)}.md`);
 }
 
-/** Vault-relative daily note path for a date, e.g. `Daily/2026-10-24.md`. */
-export function dailyNoteName(dailyFolder: string, dailyFormat: string, date: string): string {
-  return join(dailyFolder, `${formatDate(dailyFormat, date)}.md`);
-}
+/** What a new recall note starts with: the frontmatter every note in the vault carries. */
+export const newRecallNote = (date: string) => `---\ntype: recall\ncreated: ${date}\n---\n`;
+
+/** The embed that shows a day's recall note inside its daily note, in Obsidian's template syntax. */
+export const recallEmbed = (recallFolder: string, dailyFormat: string) => `![[${recallFolder}/{{date:${dailyFormat}}}]]`;
 
 /**
- * The text a missing daily note starts with: the rendered template, or '' when `dailyTemplate` is ''.
- * A configured template that does not exist is an error, so the tool never creates a note Obsidian would have templated.
+ * A one-line tip when the daily note template exists but does not embed the recall notes, so recalls would not show
+ * in daily notes. Null when it does, or when there is no template to check.
  */
-export async function newDailyNote(vaultPath: string, dailyTemplate: string, date: string, title: string): Promise<string> {
-  if (dailyTemplate === '') return '';
-  const path = join(vaultPath, dailyTemplate.endsWith('.md') ? dailyTemplate : `${dailyTemplate}.md`);
-  let template: string;
-  try {
-    template = await readFile(path, 'utf8');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    throw new Error(`Daily template not found: ${path} (set "dailyTemplate" in the config, or "" for none)`);
-  }
-  return renderTemplate(template, date, title);
+export async function embedHint(vaultPath: string, dailyTemplate: string, recallFolder: string, dailyFormat: string): Promise<string | null> {
+  if (dailyTemplate === '') return null;
+  const path = dailyTemplate.endsWith('.md') ? dailyTemplate : `${dailyTemplate}.md`;
+  const template = await readFile(join(vaultPath, path), 'utf8').catch(() => null);
+  if (template === null || template.includes(`[[${recallFolder}/`)) return null;
+  return `Tip: add ${recallEmbed(recallFolder, dailyFormat)} to ${path} to show recalls in your daily notes`;
 }
 
 /** The note's current recall block and the book its heading links to, or null if it has none. Throws on broken markers. */

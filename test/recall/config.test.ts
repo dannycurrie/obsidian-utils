@@ -35,7 +35,7 @@ test('a config without vaultPath is rejected', async () => {
   );
 });
 
-test('a missing API key, book or daily template fails before calling Claude or writing', async () => {
+test('a missing API key or book, or a bad date, fails before calling Claude or writing', async () => {
   const { dir, configPath } = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: { Mindset: BOOK },
@@ -49,7 +49,6 @@ test('a missing API key, book or daily template fails before calling Claude or w
     /No Anthropic API key\. Add it to the Keychain with: security add-generic-password -s book-recall -a anthropic-api -w <token>/,
   );
   await assert.rejects(run(args('Nope', '2026-10-24'), { BOOK_RECALL_API_KEY: API_KEY }, NOW), /No book note "Nope" in Books\//);
-  await assert.rejects(run(args('Mindset', '2026-10-23'), { BOOK_RECALL_API_KEY: API_KEY }, NOW), /Daily template not found: .*Templates\/daily\.md/);
   await assert.rejects(run(args('Mindset', '24/10/2026'), { BOOK_RECALL_API_KEY: API_KEY }, NOW), /--date must be YYYY-MM-DD/);
 
   assert.equal(stub.requests.length, 0);
@@ -57,14 +56,14 @@ test('a missing API key, book or daily template fails before calling Claude or w
 });
 
 test('without --date it writes to today in London', async () => {
-  const { configPath, dailyPath } = await makeRecallVault({
+  const { configPath, recallPath } = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: { Mindset: BOOK },
     daily: { '2026-10-25': '# Today\n' },
   });
   // 23:30 UTC on 24 Oct is 00:30 on 25 Oct in London (BST).
   const result = await run(['--book', 'Mindset', '--config', configPath], { BOOK_RECALL_API_KEY: API_KEY }, new Date('2026-10-24T23:30:00Z'));
-  assert.equal(result.notePath, dailyPath('2026-10-25'));
+  assert.equal(result.notePath, recallPath('2026-10-25'));
 });
 
 test('a reply without exactly 5 learnings is refused', () => {

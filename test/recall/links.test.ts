@@ -251,7 +251,7 @@ const E2E_FILES = {
 };
 
 test('the request labels the book note first, then each linked part, and the footer counts them', async () => {
-  const { configPath, dailyPath } = await makeRecallVault({ baseUrl: stub.baseUrl, files: E2E_FILES });
+  const { configPath, recallPath } = await makeRecallVault({ baseUrl: stub.baseUrl, files: E2E_FILES });
 
   const { code, stderr } = await runRecall(['--book', 'Mindset', '--date', '2026-10-24'], recallEnv(configPath));
 
@@ -279,13 +279,13 @@ test('the request labels the book note first, then each linked part, and the foo
   );
   // 10 book words + 5 outgoing + 9 incoming (bullets and dashes count as words, as for the book note).
   assert.match(
-    recallBlock(await readFile(dailyPath('2026-10-24'), 'utf8')),
+    recallBlock(await readFile(recallPath('2026-10-24'), 'utf8')),
     /_Generated <time> from 1 book note and 2 linked notes \(24 words\) by claude-sonnet-5-5\./,
   );
 });
 
 test('linkedNotes: false sends only the book note', async () => {
-  const { configPath, dailyPath } = await makeRecallVault({
+  const { configPath, recallPath } = await makeRecallVault({
     baseUrl: stub.baseUrl,
     files: E2E_FILES,
     config: { linkedNotes: false },
@@ -297,5 +297,5 @@ test('linkedNotes: false sends only the book note', async () => {
   const prompt = await lastPrompt();
   assert.equal(prompt.match(/<notes path=/g)?.length, 1);
   assert.doesNotMatch(prompt, /Growth Project\.md|Books Read\.md/);
-  assert.match(recallBlock(await readFile(dailyPath('2026-10-24'), 'utf8')), /from 1 book note \(10 words\)/);
+  assert.match(recallBlock(await readFile(recallPath('2026-10-24'), 'utf8')), /from 1 book note \(10 words\)/);
 });

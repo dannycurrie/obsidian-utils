@@ -34,13 +34,15 @@ export function useClaudeStub(options: { learnings?: string[] } = {}) {
 }
 
 /**
- * Temp vault with `Books/` and `Daily/` notes plus a config file pointing at it and the stub.
- * Book keys may include subfolders; `files` adds any other vault file, keyed by vault-relative path.
+ * Temp vault with `Books/`, `Daily/` and `Daily/Recall/` notes plus a config file pointing at it and the stub.
+ * Book keys may include subfolders; `recall` seeds recall notes by date; `files` adds any other vault file,
+ * keyed by vault-relative path.
  */
 export async function makeRecallVault(options: {
   baseUrl: string;
   books?: Record<string, string>;
   daily?: Record<string, string>;
+  recall?: Record<string, string>;
   files?: Record<string, string>;
   config?: Record<string, unknown>;
 }) {
@@ -56,13 +58,23 @@ export async function makeRecallVault(options: {
   for (const [date, content] of Object.entries(options.daily ?? {})) {
     await writeFile(join(vaultPath, 'Daily', `${date}.md`), content);
   }
+  for (const [date, content] of Object.entries(options.recall ?? {})) {
+    await mkdir(join(vaultPath, 'Daily', 'Recall'), { recursive: true });
+    await writeFile(join(vaultPath, 'Daily', 'Recall', `${date}.md`), content);
+  }
   for (const [path, content] of Object.entries(options.files ?? {})) {
     await mkdir(dirname(join(vaultPath, path)), { recursive: true });
     await writeFile(join(vaultPath, path), content);
   }
   const configPath = join(dir, 'config.json');
   await writeFile(configPath, JSON.stringify({ vaultPath, apiBaseUrl: options.baseUrl, ...options.config }));
-  return { dir, vaultPath, configPath, dailyPath: (date: string) => join(vaultPath, 'Daily', `${date}.md`) };
+  return {
+    dir,
+    vaultPath,
+    configPath,
+    dailyPath: (date: string) => join(vaultPath, 'Daily', `${date}.md`),
+    recallPath: (date: string) => join(vaultPath, 'Daily', 'Recall', `${date}.md`),
+  };
 }
 
 export function recallEnv(configPath: string): NodeJS.ProcessEnv {

@@ -35,7 +35,7 @@ const TITLES = ['Atomic Habits', 'Deep Work', 'Dune', 'Hyperion', 'Mindset', 'Ra
 const dailyWith = (title: string, before = '# Day\n') =>
   `${before}\n${renderRecall({ title, learnings: ['a', 'b', 'c', 'd', 'e'], words: 200, model: 'm', now: NOW })}\n`;
 
-/** Daily notes for the `count` days before DATE, showing `titles[0]` yesterday, `titles[1]` the day before, and so on. */
+/** Recall notes for the days before DATE, showing `titles[0]` yesterday, `titles[1]` the day before, and so on. */
 const history = (titles: string[]) => Object.fromEntries(titles.map((title, i) => [daysBefore(DATE, i + 1), dailyWith(title)]));
 
 /** The book a run would pick. `--dry-run` writes nothing, so repeated picks on one day stay independent. */
@@ -77,15 +77,15 @@ test('books in recall blocks of the previous noRepeatDays daily notes are never 
   const vault = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: library(TITLES),
-    daily: { ...history(TITLES.slice(0, 10)), [DATE]: dailyWith('Ulysses') },
+    recall: { ...history(TITLES.slice(0, 10)), [DATE]: dailyWith('Ulysses') },
   });
   // The run date's own note does not count (it matters for --reroll, which replaces that block).
-  const shown = await recentlyShown(join(vault.vaultPath, 'Daily'), DATE, 10);
+  const shown = await recentlyShown(join(vault.vaultPath, 'Daily', 'Recall'), DATE, 10);
   assert.equal(shown.size, 10);
   assert.equal(shown.has('ulysses'), false);
 
   // A plain run on a day that already has a block is a no-op (ticket 05), so pick from an empty note.
-  await writeFile(vault.dailyPath(DATE), '# Today\n');
+  await writeFile(vault.recallPath(DATE), '# Today\n');
   for (let seed = 0; seed < 5; seed++) assert.equal(await pickFor(vault, seed), 'Ulysses');
 });
 
@@ -107,7 +107,7 @@ test('noRepeatDays: 0 disables the window', async () => {
   const vault = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: library(['Dune', 'Mindset']),
-    daily: { ...history(['Dune']), [DATE]: '# Today\n' },
+    recall: { ...history(['Dune']), [DATE]: '# Today\n' },
     config: { noRepeatDays: 0 },
   });
   const picks = new Set<string>();
@@ -151,7 +151,7 @@ test('when every eligible book is inside the window, the least recently shown on
   const vault = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: { ...library(['Dune', 'Mindset', 'Range']), Backlog: BOOK.replace('Finished', 'Backlog') },
-    daily: { ...history(['Mindset', 'Dune', 'Range', 'Mindset', 'Backlog']), [DATE]: '# Today\n' },
+    recall: { ...history(['Mindset', 'Dune', 'Range', 'Mindset', 'Backlog']), [DATE]: '# Today\n' },
   });
   for (let seed = 0; seed < 5; seed++) assert.equal(await pickFor(vault, seed), 'Range');
 });
@@ -172,7 +172,7 @@ test('--book ignores the window', async () => {
   const vault = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: library(['Dune', 'Mindset']),
-    daily: { ...history(['Dune']), [DATE]: '# Today\n' },
+    recall: { ...history(['Dune']), [DATE]: '# Today\n' },
   });
   assert.equal(await pickFor(vault, 1, DATE, ['--book', 'Dune']), 'Dune');
 });
@@ -190,7 +190,7 @@ test('over consecutive seeded days with 11 eligible books, no book repeats withi
     for (const day of days) {
       // Each run writes its block, which is the history the next day reads back.
       picks.push((await run(['--date', day, '--config', vault.configPath], ENV, NOW, random)).title);
-      assert.match(await readFile(vault.dailyPath(day), 'utf8'), /## Book recall — \[\[/);
+      assert.match(await readFile(vault.recallPath(day), 'utf8'), /## Book recall — \[\[/);
     }
     assert.equal(new Set(picks.slice(0, 11)).size, 11, `seed ${seed}: ${picks.join(', ')}`);
     // Day 12: day 1's book is the only one outside the 10-day window.
@@ -208,8 +208,18 @@ test('the window reads past daily notes named by dailyFormat', async () => {
   const vault = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: library(['Dune', 'Mindset']),
-    files: { 'Daily/2026/10-23.md': dailyWith('Dune'), 'Daily/2026/10-24.md': '# Today\n' },
+    files: { 'Daily/Recall/2026/10-23.md': dailyWith('Dune'), 'Daily/2026/10-24.md': '# Today\n' },
     config: { dailyFormat: 'YYYY/MM-DD' },
+  });
+  for (let seed = 0; seed < 5; seed++) assert.equal(await pickFor(vault, seed), 'Mindset');
+});
+
+test('recalls written into daily notes before they moved to recall notes still count', async () => {
+  const vault = await makeRecallVault({
+    baseUrl: stub.baseUrl,
+    books: library(['Dune', 'Mindset', 'Range']),
+    daily: { [daysBefore(DATE, 1)]: dailyWith('Dune') }, // the old place
+    recall: { [daysBefore(DATE, 2)]: dailyWith('Range') }, // the new place
   });
   for (let seed = 0; seed < 5; seed++) assert.equal(await pickFor(vault, seed), 'Mindset');
 });
@@ -218,7 +228,7 @@ test('--reroll also skips books inside the window', async () => {
   const vault = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: library(['Dune', 'Mindset', 'Range']),
-    daily: { ...history(['Dune']), [DATE]: dailyWith('Mindset') },
+    recall: { ...history(['Dune']), [DATE]: dailyWith('Mindset') },
   });
   // Mindset is today's book and Dune was shown yesterday, so Range is the only choice.
   for (let seed = 0; seed < 5; seed++) assert.equal(await pickFor(vault, seed, DATE, ['--reroll']), 'Range');
