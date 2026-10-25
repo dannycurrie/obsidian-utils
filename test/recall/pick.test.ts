@@ -114,7 +114,7 @@ test('statuses and minWords default to the brief and can be overridden in config
     { booksFolder: 'Books', statuses: ['Finished', 'Reading'], minWords: 150 },
   );
 
-  const { configPath, dailyPath } = await makeRecallVault({
+  const { configPath, recallPath } = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: LIBRARY,
     daily: { [DATE]: DAILY },
@@ -124,7 +124,7 @@ test('statuses and minWords default to the brief and can be overridden in config
     const result = await run(['--date', DATE, '--config', configPath], { BOOK_RECALL_API_KEY: API_KEY }, NOW, seeded(seed));
     assert.equal(result.title, 'Some Backlog Book');
   }
-  assert.match(await readFile(dailyPath(DATE), 'utf8'), /\[\[Some Backlog Book\]\]/);
+  assert.match(await readFile(recallPath(DATE), 'utf8'), /\[\[Some Backlog Book\]\]/);
 });
 
 test('booksFolder comes from config', async () => {
@@ -152,7 +152,7 @@ test('bad statuses or minWords in config are rejected', async () => {
 });
 
 test('the CLI without --book recalls the eligible book, sending its nested path', async () => {
-  const { configPath, dailyPath } = await makeRecallVault({
+  const { configPath, recallPath } = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: { 'Fiction/Dune': ELIGIBLE['Fiction/Dune'], ...INELIGIBLE },
     daily: { [DATE]: DAILY },
@@ -162,20 +162,20 @@ test('the CLI without --book recalls the eligible book, sending its nested path'
 
   assert.equal(code, 0, stderr);
   assert.equal(stdout.trim().split('\n')[1], `${DATE}: added recall — Dune`);
-  assert.match(await readFile(dailyPath(DATE), 'utf8'), /## Book recall — \[\[Dune\]\]/);
+  assert.match(await readFile(recallPath(DATE), 'utf8'), /## Book recall — \[\[Dune\]\]/);
   const [request] = stub.requests as [{ messages: { content: string }[] }];
   assert.match(request.messages[0].content, /<notes path="Books\/Fiction\/Dune\.md">/);
 });
 
 test('--book bypasses the pick, finding nested and ineligible notes by title', async () => {
-  const { configPath, dailyPath } = await makeRecallVault({
+  const { configPath, recallPath } = await makeRecallVault({
     baseUrl: stub.baseUrl,
     books: LIBRARY,
     daily: { [DATE]: DAILY },
   });
   const nested = await runRecall(['--book', 'Gave Up', '--date', DATE], recallEnv(configPath));
   assert.equal(nested.code, 0, nested.stderr);
-  assert.match(await readFile(dailyPath(DATE), 'utf8'), /\[\[Gave Up\]\]/);
+  assert.match(await readFile(recallPath(DATE), 'utf8'), /\[\[Gave Up\]\]/);
 });
 
 test('--book with an unknown title fails clearly without calling Claude or writing', async () => {

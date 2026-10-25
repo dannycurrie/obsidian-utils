@@ -11,8 +11,13 @@ export type RecallConfig = {
   dailyFolder: string;
   /** Moment-style daily note filename, without `.md`. */
   dailyFormat: string;
-  /** Vault-relative template for a missing daily note; '' creates the note with just the block. */
+  /** Vault-relative daily note template; only read to check it embeds the recall note. */
   dailyTemplate: string;
+  /**
+   * Vault-relative folder for the recall notes, one per day named like the daily notes (default `<dailyFolder>/Recall`).
+   * The tool writes only here, never to a daily note: a note Obsidian Sync sees created on two devices keeps one side.
+   */
+  recallFolder: string;
   /** IANA time zone that decides which date is "today". */
   timezone: string;
   model: string;
@@ -49,7 +54,7 @@ export async function loadConfig(path: string): Promise<RecallConfig> {
 
   assertNoSecrets(raw, path, 'store the Anthropic API key in the Keychain');
   if (typeof raw.vaultPath !== 'string') throw new Error(`Config ${path} is missing "vaultPath"`);
-  for (const key of ['booksFolder', 'dailyFolder', 'dailyFormat', 'dailyTemplate', 'timezone', 'model', 'apiBaseUrl', 'realVault'] as const) {
+  for (const key of ['booksFolder', 'dailyFolder', 'dailyFormat', 'dailyTemplate', 'recallFolder', 'timezone', 'model', 'apiBaseUrl', 'realVault'] as const) {
     if (raw[key] !== undefined && typeof raw[key] !== 'string') throw new Error(`Config ${path} "${key}" must be a string`);
   }
   if (raw.statuses !== undefined && (!Array.isArray(raw.statuses) || raw.statuses.some((s) => typeof s !== 'string'))) {
@@ -69,7 +74,7 @@ export async function loadConfig(path: string): Promise<RecallConfig> {
   if (raw.dailyFormat === '') throw new Error(`Config ${path} "dailyFormat" must not be empty`);
   if (typeof raw.timezone === 'string') assertTimeZone(raw.timezone, `Config ${path}`);
 
-  return {
+  const config = {
     booksFolder: 'Books',
     dailyFolder: 'Daily',
     dailyFormat: 'YYYY-MM-DD',
@@ -84,6 +89,7 @@ export async function loadConfig(path: string): Promise<RecallConfig> {
     noRepeatDays: 10,
     ...raw,
   } as RecallConfig;
+  return { ...config, recallFolder: config.recallFolder ?? join(config.dailyFolder, 'Recall') };
 }
 
 /**

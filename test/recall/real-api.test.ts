@@ -20,10 +20,10 @@ test('with no env var the API key comes from the Keychain, and the env var wins 
   assert.equal(await loadApiKey({}, async () => 'from-keychain'), 'from-keychain');
   assert.equal(await loadApiKey({ BOOK_RECALL_API_KEY: 'from-env' }, async () => 'from-keychain'), 'from-env');
 
-  const { configPath, dailyPath } = await vaultWith();
+  const { configPath, recallPath } = await vaultWith();
   const result = await run(args(configPath), {}, NOW, Math.random, { ...FAST, keychain: async () => API_KEY });
-  assert.equal(result.outcome, 'appended');
-  assert.match(await readFile(dailyPath(DATE), 'utf8'), /## Book recall — \[\[Mindset\]\]/);
+  assert.equal(result.outcome, 'created');
+  assert.match(await readFile(recallPath(DATE), 'utf8'), /## Book recall — \[\[Mindset\]\]/);
 });
 
 test('a missing key names the exact Keychain command, before any request', async () => {
@@ -82,10 +82,10 @@ test('a safety refusal fails clearly, without a retry, leaving the vault unchang
 });
 
 test('the footer names the model that answered, e.g. after a refusal fallback', async () => {
-  const { configPath, dailyPath } = await vaultWith();
+  const { configPath, recallPath } = await vaultWith();
   stub.script.push({ learnings: ['a.', 'b.', 'c.', 'd.', 'e.'], model: 'claude-opus-4-8' });
   await run(args(configPath), { BOOK_RECALL_API_KEY: API_KEY }, NOW, Math.random, FAST);
-  assert.match(await readFile(dailyPath(DATE), 'utf8'), /words\) by claude-opus-4-8\./);
+  assert.match(await readFile(recallPath(DATE), 'utf8'), /words\) by claude-opus-4-8\./);
 });
 
 test('while apiBaseUrl is the local stub, writing to realVault is refused before any request', async () => {

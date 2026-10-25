@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { CANNED_LEARNINGS } from '../../mock/claude.ts';
 import { run } from '../../src/recall/cli.ts';
 import { loadConfig } from '../../src/recall/config.ts';
-import { currentRecall, formatDate, renderTemplate, todayIn } from '../../src/recall/daily.ts';
+import { currentRecall, formatDate, todayIn } from '../../src/recall/daily.ts';
 import { snapshot } from '../harness.ts';
 import { API_KEY, makeRecallVault, recallBlock, recallEnv, runRecall, useClaudeStub } from './harness.ts';
 
@@ -38,7 +38,8 @@ const existingBlock = (title: string) =>
     '_Generated 2026-10-24 07:00 from 1 book note (6 words) by claude-sonnet-5-5. Re-runs overwrite this block._',
     '<!-- book-recall:end -->',
   ].join('\n');
-const BEFORE = '---\ntype: daily\n---\n## Notes\n\n- Morning thought\n\n';
+// A recall note someone has written around (e.g. a reflection under the recall).
+const BEFORE = '---\ntype: recall\ncreated: 2026-10-24\n---\n\n- Morning thought\n\n';
 const AFTER = '\n\n## Evening\n\n- Written after the recall, no trailing newline';
 const withBlock = (title: string) => `${BEFORE}${existingBlock(title)}${AFTER}`;
 
@@ -64,19 +65,19 @@ function assertReplacedInPlace(note: string, title: string, learnings: string[])
 test('a second plain run on the same day makes no Claude call and leaves the vault byte-for-byte unchanged', async () => {
   const v = await vault({ daily: { '2026-10-24': '# Today\n' } });
   const first = await runIn(v.configPath, ['--date', '2026-10-24']);
-  assert.equal(first.outcome, 'appended');
+  assert.equal(first.outcome, 'created');
   assert.equal(stub.requests.length, 1);
   const before = await snapshot(v.dir);
 
   stub.requests.length = 0;
   const second = await runIn(v.configPath, ['--date', '2026-10-24'], () => 0.99);
-  assert.deepEqual(second, { date: '2026-10-24', title: first.title, notePath: v.dailyPath('2026-10-24'), outcome: 'skipped' });
+  assert.deepEqual(second, { date: '2026-10-24', title: first.title, notePath: v.recallPath('2026-10-24'), outcome: 'skipped' });
   assert.equal(stub.requests.length, 0);
   assert.deepEqual(await snapshot(v.dir), before);
 });
 
 test('the CLI prints the note path and a one-line "already has a recall" message, exits 0, and needs no API key', async () => {
-  const v = await vault({ daily: { '2026-10-24': withBlock('Beta') } });
+  const v = await vault({ recall: { '2026-10-24': withBlock('Beta') } });
   const before = await snapshot(v.dir);
   const env = { ...recallEnv(v.configPath), BOOK_RECALL_API_KEY: '' };
 
@@ -84,7 +85,7 @@ test('the CLI prints the note path and a one-line "already has a recall" message
 
   assert.equal(code, 0, stderr);
   assert.deepEqual(stdout.trim().split('\n'), [
-    v.dailyPath('2026-10-24'),
+    v.recallPath('2026-10-24'),
     '2026-10-24: already has a recall — Beta (nothing to do; --regenerate or --reroll replaces it)',
   ]);
   assert.equal(stub.requests.length, 0);
@@ -92,7 +93,7 @@ test('the CLI prints the note path and a one-line "already has a recall" message
 });
 
 test('--book on a day that already has a block is also a no-op', async () => {
-  const v = await vault({ daily: { '2026-10-24': withBlock('Beta') } });
+  const v = await vault({ recall: { '2026-10-24': withBlock('Beta') } });
   const before = await snapshot(v.dir);
   const result = await runIn(v.configPath, ['--date', '2026-10-24', '--book', 'Alpha']);
   assert.equal(result.outcome, 'skipped');
@@ -104,7 +105,7 @@ test('--book on a day that already has a block is also a no-op', async () => {
 
 test('--regenerate re-summarises the same book and replaces the block in place', async () => {
   // Beta is no longer eligible: --regenerate still uses it, as --book would.
-  const v = await vault({ books: { ...BOOKS, Beta: book('Abandoned') }, daily: { '2026-10-24': withBlock('Beta') } });
+  const v = await vault({ books: { ...BOOKS, Beta: book('Abandoned') }, recall: { '2026-10-24': withBlock('Beta') } });
   stub.script.push({ learnings: FRESH });
 
   const result = await runIn(v.configPath, ['--date', '2026-10-24', '--regenerate'], () => 0);
@@ -113,18 +114,18 @@ test('--regenerate re-summarises the same book and replaces the block in place',
   assert.equal(result.title, 'Beta');
   assert.equal(stub.requests.length, 1);
   assert.match((stub.requests[0] as { messages: { content: string }[] }).messages[0].content, /^Book: Beta\n/);
-  assertReplacedInPlace(await readFile(v.dailyPath('2026-10-24'), 'utf8'), 'Beta', FRESH);
+  assertReplacedInPlace(await readFile(v.recallPath('2026-10-24'), 'utf8'), 'Beta', FRESH);
 });
 
 test('--regenerate also understands an aliased heading link', async () => {
-  const v = await vault({ daily: { '2026-10-24': withBlock('Gamma|The G book') } });
+  const v = await vault({ recall: { '2026-10-24': withBlock('Gamma|The G book') } });
   const result = await runIn(v.configPath, ['--date', '2026-10-24', '--regenerate']);
   assert.equal(result.title, 'Gamma');
 });
 
 for (const random of [0, 0.34, 0.5, 0.67, 0.99]) {
   test(`--reroll never picks today's book (random ${random}) and replaces the block in place`, async () => {
-    const v = await vault({ daily: { '2026-10-24': withBlock('Alpha') } });
+    const v = await vault({ recall: { '2026-10-24': withBlock('Alpha') } });
     stub.script.push({ learnings: FRESH });
 
     const result = await runIn(v.configPath, ['--date', '2026-10-24', '--reroll'], () => random);
@@ -133,15 +134,15 @@ for (const random of [0, 0.34, 0.5, 0.67, 0.99]) {
     assert.notEqual(result.title, 'Alpha');
     assert.equal(result.title, random < 0.5 ? 'Beta' : 'Gamma');
     assert.equal(stub.requests.length, 1);
-    assertReplacedInPlace(await readFile(v.dailyPath('2026-10-24'), 'utf8'), result.title, FRESH);
+    assertReplacedInPlace(await readFile(v.recallPath('2026-10-24'), 'utf8'), result.title, FRESH);
   });
 }
 
 test('--reroll --book replaces the block with the named book, but not with today\'s book', async () => {
-  const v = await vault({ daily: { '2026-10-24': withBlock('Alpha') } });
+  const v = await vault({ recall: { '2026-10-24': withBlock('Alpha') } });
   const result = await runIn(v.configPath, ['--date', '2026-10-24', '--reroll', '--book', 'Gamma']);
   assert.equal(result.title, 'Gamma');
-  assertReplacedInPlace(await readFile(v.dailyPath('2026-10-24'), 'utf8'), 'Gamma', CANNED_LEARNINGS);
+  assertReplacedInPlace(await readFile(v.recallPath('2026-10-24'), 'utf8'), 'Gamma', CANNED_LEARNINGS);
 
   stub.requests.length = 0;
   await assert.rejects(runIn(v.configPath, ['--date', '2026-10-24', '--reroll', '--book', 'Gamma']), /"Gamma" is already the book in today's recall/);
@@ -151,7 +152,7 @@ test('--reroll --book replaces the block with the named book, but not with today
 test('replace flags fail before calling Claude when there is nothing to replace or nothing to switch to', async () => {
   const v = await vault({
     books: { Alpha: book(), Beta: book('Backlog') },
-    daily: { '2026-10-24': '# Today\n', '2026-10-25': withBlock('Alpha'), '2026-10-26': withBlock('Alpha').replace('[[Alpha]]', 'Alpha') },
+    recall: { '2026-10-24': '# Today\n', '2026-10-25': withBlock('Alpha'), '2026-10-26': withBlock('Alpha').replace('[[Alpha]]', 'Alpha') },
   });
   const before = await snapshot(v.dir);
   const at = (date: string, ...flags: string[]) => runIn(v.configPath, ['--date', date, ...flags]);
@@ -195,7 +196,7 @@ test('--dry-run calls Claude and prints only the block to stdout, writing nothin
   assert.deepEqual(await snapshot(v.dir), before);
 });
 
-test('--dry-run does not create a missing daily note', async () => {
+test('--dry-run creates neither the recall note nor a daily note', async () => {
   const v = await vault({ files: { 'Templates/daily.md': TEMPLATE } });
   const before = await snapshot(v.dir);
   const result = await runIn(v.configPath, ['--date', '2026-10-24', '--dry-run']);
@@ -207,7 +208,7 @@ test('--dry-run does not create a missing daily note', async () => {
 });
 
 test('--dry-run previews a --reroll without writing; on its own it follows the plain no-op', async () => {
-  const v = await vault({ daily: { '2026-10-24': withBlock('Alpha') } });
+  const v = await vault({ recall: { '2026-10-24': withBlock('Alpha') } });
   const before = await snapshot(v.dir);
 
   assert.equal((await runIn(v.configPath, ['--date', '2026-10-24', '--dry-run'])).outcome, 'skipped');
@@ -220,38 +221,26 @@ test('--dry-run previews a --reroll without writing; on its own it follows the p
   assert.deepEqual(await snapshot(v.dir), before);
 });
 
-// --- Daily note creation ---
+// --- Recall notes ---
 
-for (const [date, created, week] of [
-  ['2026-10-24', '2026-10-24', '2026-W43'],
-  ['2026-12-31', '2026-12-31', '2026-W53'],
-  ['2027-01-01', '2027-01-01', '2026-W53'],
-  ['2027-01-04', '2027-01-04', '2027-W01'],
-]) {
-  test(`a missing daily note for ${date} is created from the template (week ${week}), followed by the block`, async () => {
+for (const date of ['2026-10-24', '2026-12-31', '2027-01-01']) {
+  test(`the recall note for ${date} is created with recall frontmatter; no daily note is created`, async () => {
     const v = await vault({ files: { 'Templates/daily.md': TEMPLATE } });
 
     const result = await runIn(v.configPath, ['--date', date, '--book', 'Alpha']);
 
     assert.equal(result.outcome, 'created');
-    assert.equal(result.notePath, v.dailyPath(date));
-    const note = await readFile(v.dailyPath(date), 'utf8');
-    const head = `---\ntype: daily\ncreated: ${created}\nweek: ${week}\n---\nWeek plan: [[${week}]]\n\n## Notes\n\n`;
-    assert.equal(note, `${head}${result.block}\n`);
+    assert.equal(result.notePath, v.recallPath(date));
+    assert.equal(await readFile(v.recallPath(date), 'utf8'), `---\ntype: recall\ncreated: ${date}\n---\n\n${result.block}\n`);
+    assert.deepEqual(await readdir(join(v.vaultPath, 'Daily')), ['Recall']);
   });
 }
 
-test('a missing template fails before calling Claude; "dailyTemplate": "" creates the note with just the block', async () => {
+test('the daily note template is only read for the embed hint: a missing one is not an error', async () => {
   const v = await vault({ config: { dailyTemplate: 'Templates/Missing.md' } });
-  const before = await snapshot(v.dir);
-  await assert.rejects(runIn(v.configPath, ['--date', '2026-10-24']), /Daily template not found: .*Templates\/Missing\.md/);
-  assert.equal(stub.requests.length, 0);
-  assert.deepEqual(await snapshot(v.dir), before);
-
-  const none = await vault({ config: { dailyTemplate: '' } });
-  const result = await runIn(none.configPath, ['--date', '2026-10-24']);
+  const result = await runIn(v.configPath, ['--date', '2026-10-24']);
   assert.equal(result.outcome, 'created');
-  assert.equal(await readFile(none.dailyPath('2026-10-24'), 'utf8'), `${result.block}\n`);
+  assert.equal(result.hint, undefined);
 });
 
 test('date formats render Moment-style tokens, ISO week years and literals', () => {
@@ -266,27 +255,24 @@ test('date formats render Moment-style tokens, ISO week years and literals', () 
   assert.throws(() => formatDate('YYYY-MM-Do', '2026-10-24'), /Unsupported date token "o" in "YYYY-MM-Do"/);
 });
 
-test('templates render {{date}}, {{date:FORMAT}} and {{title}}, leaving other tokens alone', () => {
-  assert.equal(
-    renderTemplate('{{date}} | {{ date:DD/MM }} | {{date:GGGG-[W]WW}} | {{title}} | {{time}} | {{tp.file}}', '2027-01-01', '2027-01-01'),
-    '2027-01-01 | 01/01 | 2026-W53 | 2027-01-01 | {{time}} | {{tp.file}}',
-  );
-});
-
 // --- Config ---
 
-test('daily folder, filename format and template path come from config', async () => {
+test('recall notes go in <dailyFolder>/Recall by default, named by dailyFormat, or in recallFolder', async () => {
   const v = await vault({
-    files: { 'Journal/.keep': '', 'Tpl/Day.md': 'Day {{date:dddd}}\n' },
-    config: { dailyFolder: 'Journal', dailyFormat: 'YYYY/MM/YYYY-MM-DD ddd', dailyTemplate: 'Tpl/Day.md' },
+    files: { 'Journal/.keep': '' },
+    config: { dailyFolder: 'Journal', dailyFormat: 'YYYY/MM/YYYY-MM-DD ddd' },
   });
   const result = await runIn(v.configPath, ['--date', '2026-10-24', '--book', 'Alpha']);
-  const path = join(v.vaultPath, 'Journal', '2026', '10', '2026-10-24 Sat.md');
+  const path = join(v.vaultPath, 'Journal', 'Recall', '2026', '10', '2026-10-24 Sat.md');
   assert.equal(result.notePath, path);
-  assert.equal(await readFile(path, 'utf8'), `Day Saturday\n\n${result.block}\n`);
+  assert.match(await readFile(path, 'utf8'), /^---\ntype: recall\ncreated: 2026-10-24\n---\n\n<!-- book-recall:start -->/);
 
   // The next run finds that note: no second note, no second block.
   assert.equal((await runIn(v.configPath, ['--date', '2026-10-24'])).outcome, 'skipped');
+
+  const elsewhere = await vault({ config: { recallFolder: 'Reading/Recalls' } });
+  const moved = await runIn(elsewhere.configPath, ['--date', '2026-10-24', '--book', 'Alpha']);
+  assert.equal(moved.notePath, join(elsewhere.vaultPath, 'Reading', 'Recalls', '2026-10-24.md'));
 });
 
 test('without those keys, config falls back to the vault\'s .obsidian/daily-notes.json, then to Daily, YYYY-MM-DD, Templates/daily.md', async () => {
@@ -303,8 +289,7 @@ test('without those keys, config falls back to the vault\'s .obsidian/daily-note
   const fromVault = await loadConfig(v.configPath);
   assert.deepEqual([fromVault.dailyFolder, fromVault.dailyFormat, fromVault.dailyTemplate], ['Journal', 'DD-MM-YYYY', 'Tpl/Day']);
   const result = await runIn(v.configPath, ['--date', '2026-10-24', '--book', 'Alpha']);
-  assert.equal(result.notePath, join(v.vaultPath, 'Journal', '24-10-2026.md'));
-  assert.equal(await readFile(result.notePath, 'utf8'), `# 24-10-2026\n\n${result.block}\n`);
+  assert.equal(result.notePath, join(v.vaultPath, 'Journal', 'Recall', '24-10-2026.md'));
 
   // Config keys win over the vault's settings.
   await writeFile(v.configPath, JSON.stringify({ vaultPath: v.vaultPath, dailyFolder: 'Daily', dailyFormat: 'YYYY-MM-DD' }));
@@ -317,6 +302,7 @@ test('config rejects an unknown time zone, an empty dailyFormat and non-string d
     [{ timezone: 'Mars/Olympus' }, /"timezone" is not a known time zone: "Mars\/Olympus"/],
     [{ dailyFormat: '' }, /"dailyFormat" must not be empty/],
     [{ dailyTemplate: 3 }, /"dailyTemplate" must be a string/],
+    [{ recallFolder: false }, /"recallFolder" must be a string/],
   ] as const) {
     const v = await vault({ config });
     await assert.rejects(loadConfig(v.configPath), error);
@@ -340,26 +326,26 @@ const MIDNIGHT_CASES: [string, string, string][] = [
 
 for (const [instant, date, label] of MIDNIGHT_CASES) {
   test(`at ${instant} (${label}) the run writes to the London date ${date}`, async () => {
-    const v = await vault({ config: { dailyTemplate: '' } });
+    const v = await vault();
     const result = await runIn(v.configPath, ['--book', 'Alpha'], () => 0, new Date(instant));
     assert.equal(result.date, date);
-    assert.equal(result.notePath, v.dailyPath(date));
-    assert.deepEqual(await readdir(join(v.vaultPath, 'Daily')), [`${date}.md`]);
+    assert.equal(result.notePath, v.recallPath(date));
+    assert.deepEqual(await readdir(join(v.vaultPath, 'Daily', 'Recall')), [`${date}.md`]);
   });
 }
 
 test('the timezone key decides "today" and the Generated time', async () => {
   assert.equal(todayIn('Europe/London', new Date('2026-10-25T02:00:00Z')), '2026-10-25');
   assert.equal(todayIn('America/New_York', new Date('2026-10-25T02:00:00Z')), '2026-10-24');
-  const v = await vault({ config: { dailyTemplate: '', timezone: 'America/New_York' } });
+  const v = await vault({ config: { timezone: 'America/New_York' } });
   const result = await runIn(v.configPath, ['--book', 'Alpha'], () => 0, new Date('2026-10-25T02:00:00Z'));
-  assert.equal(result.notePath, v.dailyPath('2026-10-24'));
+  assert.equal(result.notePath, v.recallPath('2026-10-24'));
   assert.match(result.block!, /_Generated 2026-10-24 22:00 /);
 });
 
 // --- Forced re-runs ---
 
-test('repeated plain and forced re-runs leave one daily note with one block', async () => {
+test('repeated plain and forced re-runs leave one recall note with one block, and no daily note', async () => {
   const v = await vault({ files: { 'Templates/daily.md': TEMPLATE } });
   const runs: [string[], string][] = [
     [[], 'created'],
@@ -375,9 +361,10 @@ test('repeated plain and forced re-runs leave one daily note with one block', as
     assert.equal(result.outcome, outcome, flags.join(' '));
   }
   assert.equal(stub.requests.length, 5);
-  assert.deepEqual(await readdir(join(v.vaultPath, 'Daily')), ['2026-10-24.md']);
-  const note = await readFile(v.dailyPath('2026-10-24'), 'utf8');
+  assert.deepEqual(await readdir(join(v.vaultPath, 'Daily')), ['Recall']);
+  assert.deepEqual(await readdir(join(v.vaultPath, 'Daily', 'Recall')), ['2026-10-24.md']);
+  const note = await readFile(v.recallPath('2026-10-24'), 'utf8');
   assert.equal(note.split('<!-- book-recall:start -->').length - 1, 1);
   assert.equal(note.split('<!-- book-recall:end -->').length - 1, 1);
-  assert.ok(note.startsWith('---\ntype: daily\ncreated: 2026-10-24\nweek: 2026-W43\n---\n'), 'template text is kept');
+  assert.ok(note.startsWith('---\ntype: recall\ncreated: 2026-10-24\n---\n'), 'frontmatter is kept');
 });

@@ -5,7 +5,7 @@
 - at 07:00 (`StartCalendarInterval`); if the laptop is asleep then, launchd runs it once when it wakes
 - at login after a cold boot (`RunAtLoad`)
 
-A day the laptop isn't opened gets no recall, and missed days are never filled in: each run writes to the note for the day it actually runs. Waking, logging in and the 07:00 timer can all fire on one day; only the first run writes, and later runs find the block and exit without calling Claude.
+A day the laptop isn't opened gets no recall, and missed days are never filled in: each run writes the recall note (`Daily/Recall/YYYY-MM-DD.md`) for the day it actually runs. The daily note shows it through the `![[Daily/Recall/{{date:YYYY-MM-DD}}]]` embed in `Templates/daily.md`. Waking, logging in and the 07:00 timer can all fire on one day; only the first run writes, and later runs find the block and exit without calling Claude.
 
 One gap: a day the laptop is only open before 07:00 is skipped. Install with an earlier `--hour` if that matters.
 

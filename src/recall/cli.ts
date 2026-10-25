@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import { mkdir, readFile, stat } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { confirmBlock, type WriteOutcome, writeBlock } from '../shared/note.ts';
 import type { KeychainReader } from '../shared/secrets.ts';
 import { MARKERS, renderRecall } from './block.ts';
 import { type RetryOptions, summarise } from './claude.ts';
 import { assertSafeTarget, defaultConfigPath, loadApiKey, loadConfig, type RecallConfig, readKeychain } from './config.ts';
-import { currentRecall, dailyNoteName, formatDate, newDailyNote, todayIn } from './daily.ts';
+import { currentRecall, datedNoteName, embedHint, newRecallNote, todayIn } from './daily.ts';
 import { pickUnshown, recentlyShown } from './history.ts';
 import { gatherLinkedNotes } from './links.ts';
 import { type BookNote, findBook, isEligible, loadBookNotes } from './pick.ts';
@@ -19,10 +19,13 @@ export type RunResult = {
   date: string;
   /** The recalled book; for `skipped`, the book already in the note ('unknown book' if its heading can't be read). */
   title: string;
+  /** The day's recall note (not its daily note, which the tool never writes). */
   notePath: string;
   outcome: RunOutcome;
   /** The rendered block, for every outcome but `skipped`. */
   block?: string;
+  /** Set when the daily note template does not embed the recall notes yet. */
+  hint?: string;
 };
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -60,9 +63,13 @@ export async function run(
   const date = values.date ?? todayIn(config.timezone, now);
   // Everything that can fail without Claude is checked before the call, so such a failure costs no request.
   if (!(await isDirectory(config.vaultPath))) throw new Error(`Vault not found: ${config.vaultPath}`);
+  // The daily folder is only read, but a missing one means vaultPath or dailyFolder is wrong.
   const dailyDir = join(config.vaultPath, config.dailyFolder);
   if (!(await isDirectory(dailyDir))) throw new Error(`Daily folder not found: ${dailyDir}`);
-  const notePath = join(config.vaultPath, dailyNoteName(config.dailyFolder, config.dailyFormat, date));
+  // The recall goes in its own note, embedded by the daily note template; see `recallFolder`.
+  const notePath = join(config.vaultPath, datedNoteName(config.recallFolder, config.dailyFormat, date));
+  const hintText = await embedHint(config.vaultPath, config.dailyTemplate, config.recallFolder, config.dailyFormat);
+  const hint = hintText ? { hint: hintText } : {};
   const existing = await readFile(notePath, 'utf8').catch((error: NodeJS.ErrnoException) => {
     if (error.code === 'ENOENT') return null;
     throw error;
@@ -70,15 +77,17 @@ export async function run(
   const current = existing === null ? null : currentRecall(existing); // throws on broken markers
   const replacing = values.regenerate ? 'regenerate' : values.reroll ? 'reroll' : null;
   // A day that already has a block stops here: no pick, no Claude call, nothing written.
-  if (current && !replacing) return { date, title: current.title ?? 'unknown book', notePath, outcome: 'skipped' };
+  if (current && !replacing) return { date, title: current.title ?? 'unknown book', notePath, outcome: 'skipped', ...hint };
   if (!current && replacing) throw new Error(`No book-recall block in ${notePath} to ${replacing}`);
   if (replacing === 'regenerate' && !current?.title) throw new Error(`Can't read the book from the book-recall block in ${notePath}`);
-  const newNote = existing === null ? await newDailyNote(config.vaultPath, config.dailyTemplate, date, basename(notePath, '.md')) : '';
   const apiKey = await loadApiKey(env, keychain);
 
   const notes = await loadBookNotes(config.vaultPath, config.booksFolder);
   // The no-repeat window only applies to the random pick (including --reroll); a named book is recalled as is.
-  const shown = await recentlyShown(dailyDir, date, config.noRepeatDays, (d) => `${formatDate(config.dailyFormat, d)}.md`);
+  const shown = await recentlyShown(config.vaultPath, date, config.noRepeatDays, (d) => [
+    datedNoteName(config.recallFolder, config.dailyFormat, d),
+    datedNoteName(config.dailyFolder, config.dailyFormat, d),
+  ]);
   const named = values.book ?? (replacing === 'regenerate' ? current!.title! : undefined);
   const book = chooseBook(notes, config, random, shown, named, replacing === 'reroll' ? current!.title : null);
   const linked = config.linkedNotes
@@ -88,11 +97,11 @@ export async function run(
   const words = linked.reduce((total, part) => total + part.words, book.words);
   const block = renderRecall({ title: book.title, learnings, words, linkedNotes: linked.length, model, now, timeZone: config.timezone });
   if (values['dry-run']) return { date, title: book.title, notePath, outcome: 'dry-run', block };
-  if (existing === null) await mkdir(dirname(notePath), { recursive: true }); // dailyFormat may contain subfolders
-  const outcome = await writeBlock({ notePath, block, newNote, markers: MARKERS });
+  if (existing === null) await mkdir(dirname(notePath), { recursive: true });
+  const outcome = await writeBlock({ notePath, block, newNote: newRecallNote(date), markers: MARKERS });
   await confirmBlock(notePath, block, MARKERS);
 
-  return { date, title: book.title, notePath, outcome, block };
+  return { date, title: book.title, notePath, outcome, block, ...hint };
 }
 
 /**
@@ -135,6 +144,7 @@ if (import.meta.main) {
       console.log(result.notePath);
       console.log(`${result.date}: ${OUTCOME_TEXT[result.outcome]} — ${result.title}`);
     }
+    if (result.hint && result.outcome !== 'dry-run') console.log(result.hint);
   } catch (error) {
     console.error(`book-recall: ${(error as Error).message}`);
     process.exitCode = 1;
