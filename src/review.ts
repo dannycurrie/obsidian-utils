@@ -1,5 +1,6 @@
 import type { Metric, MetricType, MetricsResponse } from './api.ts';
-import { TIME_ZONE, londonDate } from './isoWeek.ts';
+import { londonDate } from './isoWeek.ts';
+import { formatGeneratedAt } from './shared/time.ts';
 
 export type MetricSummary = {
   id: string;
@@ -77,23 +78,6 @@ function formatDelta(current: MetricSummary, previous: MetricSummary | undefined
   if (delta === 0) return '=';
   const sign = delta > 0 ? '+' : '−';
   return current.outOf !== null ? `${sign}${Math.abs(delta)}` : `${sign}${withUnit(Math.abs(delta), current)}`;
-}
-
-function formatGeneratedAt(now: Date): string {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: TIME_ZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    })
-      .formatToParts(now)
-      .map((part) => [part.type, part.value]),
-  );
-  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
 
 export function renderReview(options: {

@@ -1,8 +1,10 @@
-import { execFile } from 'node:child_process';
-import { readFile, realpath } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { promisify } from 'node:util';
+import { join } from 'node:path';
+import { isLocalUrl, isSamePath } from './shared/guard.ts';
+import { type KeychainReader, type SecretSource, assertNoSecrets, keychainReader, loadSecret } from './shared/secrets.ts';
+
+export type { KeychainReader };
 
 export type Config = {
   baseUrl: string;
@@ -21,10 +23,15 @@ export type Config = {
 // Matches the frontmatter of the hand-made week plans in Plans/Week plans/.
 const DEFAULT_NEW_NOTE_TEMPLATE = '---\ntype: plan\ncreated: {{created}}\nperiod: {{period}}\nstatus: Draft\n---\n';
 
-const SECRET_KEY = /token|secret|password|api_?key/i;
-
 export const KEYCHAIN_SERVICE = 'week-review';
 export const KEYCHAIN_ACCOUNT = 'tracker-api';
+
+const TRACKER_TOKEN: SecretSource = {
+  label: 'API token',
+  envVar: 'WEEK_REVIEW_TOKEN',
+  service: KEYCHAIN_SERVICE,
+  account: KEYCHAIN_ACCOUNT,
+};
 
 export function defaultConfigPath(env: NodeJS.ProcessEnv): string {
   return env.WEEK_REVIEW_CONFIG ?? join(homedir(), '.config', 'week-review', 'config.json');
@@ -39,12 +46,7 @@ export async function loadConfig(path: string): Promise<Config> {
   }
   const raw = JSON.parse(text) as Record<string, unknown>;
 
-  const secrets = Object.keys(raw).filter((key) => SECRET_KEY.test(key));
-  if (secrets.length) {
-    throw new Error(
-      `Config ${path} must not contain secrets (found "${secrets.join('", "')}"); store the API token in the Keychain`,
-    );
-  }
+  assertNoSecrets(raw, path, 'store the API token in the Keychain');
   for (const key of ['baseUrl', 'vaultPath', 'realVault', 'noteFolder'] as const) {
     if (typeof raw[key] !== 'string') throw new Error(`Config ${path} is missing "${key}"`);
   }
@@ -66,45 +68,17 @@ export async function loadConfig(path: string): Promise<Config> {
   } as Config;
 }
 
-export type KeychainReader = () => Promise<string | null>;
-
-export const readKeychain: KeychainReader = async () => {
-  try {
-    const { stdout } = await promisify(execFile)('security', [
-      'find-generic-password',
-      '-s',
-      KEYCHAIN_SERVICE,
-      '-a',
-      KEYCHAIN_ACCOUNT,
-      '-w',
-    ]);
-    return stdout.trim() || null;
-  } catch {
-    return null;
-  }
-};
+export const readKeychain: KeychainReader = keychainReader(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT);
 
 /** WEEK_REVIEW_TOKEN wins; otherwise the macOS Keychain. */
-export async function loadToken(env: NodeJS.ProcessEnv, keychain: KeychainReader): Promise<string> {
-  const token = env.WEEK_REVIEW_TOKEN || (await keychain());
-  if (!token) {
-    throw new Error(
-      `No API token. Add it to the Keychain with: security add-generic-password -s ${KEYCHAIN_SERVICE} -a ${KEYCHAIN_ACCOUNT} -w <token>`,
-    );
-  }
-  return token;
-}
-
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
-
-async function canonicalPath(path: string): Promise<string> {
-  return realpath(path).catch(() => resolve(path));
+export function loadToken(env: NodeJS.ProcessEnv, keychain: KeychainReader): Promise<string> {
+  return loadSecret(env, TRACKER_TOKEN, keychain);
 }
 
 /** Placeholder numbers from the mock must never land in the vault reviews are really read in. */
 export async function assertSafeTarget(config: Config): Promise<void> {
-  if (!LOCAL_HOSTS.has(new URL(config.baseUrl).hostname)) return;
-  if ((await canonicalPath(config.vaultPath)) === (await canonicalPath(config.realVault))) {
+  if (!isLocalUrl(config.baseUrl)) return;
+  if (await isSamePath(config.vaultPath, config.realVault)) {
     throw new Error(
       `Refusing to write mock data into the real vault (${config.realVault}); point vaultPath at a test copy while baseUrl is ${config.baseUrl}`,
     );

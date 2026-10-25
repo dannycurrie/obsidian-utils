@@ -4,13 +4,16 @@
   "private": true,
   "type": "module",
   "bin": {
-    "week-review": "src/cli.ts"
+    "week-review": "src/cli.ts",
+    "book-recall": "src/recall/cli.ts"
   },
   "scripts": {
     "test": "node --test 'test/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "mock": "node mock/server.ts",
-    "contract": "node scripts/contract-check.ts"
+    "contract": "node scripts/contract-check.ts",
+    "launchd:install": "node scripts/launchd.ts install",
+    "launchd:uninstall": "node scripts/launchd.ts uninstall"
   },
   "engines": {
     "node": ">=24"
@@ -18,5 +21,8 @@
   "devDependencies": {
     "@types/node": "^24.19.2",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0"
   }
 }

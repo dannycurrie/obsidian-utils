@@ -1,4 +1,6 @@
-export const TIME_ZONE = 'Europe/London';
+import { TIME_ZONE } from './shared/time.ts';
+
+export { TIME_ZONE };
 
 export type IsoWeek = { year: number; week: number };
 
