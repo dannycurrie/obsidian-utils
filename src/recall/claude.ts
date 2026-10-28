@@ -62,13 +62,15 @@ export function parseLearnings(message: Reply): string[] {
 
 /** Not user-facing; tests shorten both so the suite stays fast. */
 export type RetryOptions = {
-  /** Wait before retrying a failed request. */
+  /** Wait before the first retry of a failed request; each later retry waits twice as long as the one before. */
   retryDelayMs?: number;
   /** Per-request timeout. */
   timeoutMs?: number;
 };
 
-export const DEFAULT_RETRY_DELAY_MS = 1000;
+export const DEFAULT_RETRY_DELAY_MS = 5000;
+/** Retries for a failed request; with the default delay they wait 5s, 10s and 20s. */
+export const REQUEST_RETRIES = 3;
 export const DEFAULT_TIMEOUT_MS = 60_000;
 
 /**
@@ -77,7 +79,7 @@ export const DEFAULT_TIMEOUT_MS = 60_000;
  */
 const FALLBACK_MODELS = new Set(['claude-fable-5-1', 'claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5']);
 
-/** Failures worth one more try: unreachable, timeout, rejected key (the brief asks for it), rate limit, server error. */
+/** Failures worth retrying: unreachable, timeout, rejected key (the brief asks for it), rate limit, server error. */
 function isRetryable(error: unknown): boolean {
   if (error instanceof Anthropic.APIConnectionError) return true;
   if (!(error instanceof Anthropic.APIError) || error.status === undefined) return false;
@@ -110,8 +112,8 @@ function describeRequestError(error: unknown, baseURL: string, timeoutMs: number
 const RETRY_INSTRUCTION = `Return exactly ${LEARNING_COUNT} learnings as JSON, each a single non-empty sentence, with no preamble.`;
 
 /**
- * Asks Claude for the learnings. A failed request (see `isRetryable`) is retried once after a short wait,
- * and a bad reply is retried once with the problem sent back to the model; after that it throws.
+ * Asks Claude for the learnings. A failed request (see `isRetryable`) is retried up to `REQUEST_RETRIES` times,
+ * waiting longer before each retry, and a bad reply is retried once with the problem sent back to the model; after that it throws.
  * A safety refusal is not retried. The SDK's own retries are off so every attempt and wait is decided here.
  * `model` is the model that answered, which differs from `options.model` when a refusal fallback ran.
  */
@@ -125,7 +127,7 @@ export async function summarise(
     ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }
     : {};
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: buildPrompt(options.book, options.linked) }];
-  let requestRetried = false;
+  let requestRetries = 0;
   let replyRetried = false;
 
   for (;;) {
@@ -142,9 +144,9 @@ export async function summarise(
     } catch (error) {
       const described = describeRequestError(error, client.baseURL, timeoutMs);
       if (!isRetryable(error)) throw described;
-      if (requestRetried) throw new Error(`${described.message} (after retrying once)`);
-      requestRetried = true;
-      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+      if (requestRetries === REQUEST_RETRIES) throw new Error(`${described.message} (after ${REQUEST_RETRIES} retries)`);
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs * 2 ** requestRetries));
+      requestRetries++;
       continue;
     }
 

@@ -146,7 +146,7 @@ Every check happens before the write. If any step fails, the recall note is left
 | Obsidian Sync | A note created on two devices within minutes keeps the remote copy without merging. On 25 Oct 2026 the tool created the daily note at 07:03 while the phone created its own, and the recall was lost. So the tool writes only its own recall note, which no other device creates. Opening an embed that doesn't exist yet would create the note on that device, so leave it until the recall arrives |
 | Note already has a block | Default: no-op, exit 0. `--regenerate` / `--reroll`: replace the block in place |
 | Unmatched or repeated markers | Fail and ask for a manual fix (same rule as `week-review`) |
-| API down, 401, rate limit, timeout | Retry once after a short wait, then fail non-zero. Nothing is written |
+| API down, 401, rate limit, timeout | Retry up to 3 times, waiting 5s, 10s and 20s, then fail non-zero. Nothing is written |
 | LLM reply isn't exactly 5 bullets | Validate the output; retry once with the error included, then fail |
 | Very long note | The longest today is 5,618 words (about 8k tokens), so one call is enough. Linked context is trimmed to `maxLinkedWords` first; the book note is truncated only as a last resort |
 | Note contains Tana leftovers (`tana_id`, ☐/☑ bullets) | Remove frontmatter before sending. Leave the body as-is; the prompt tells the model to ignore checklist scaffolding |
