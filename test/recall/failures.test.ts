@@ -85,16 +85,38 @@ const REQUEST_FAILURES: [string, StubBehaviour, RegExp][] = [
 ];
 
 for (const [name, failure, error] of REQUEST_FAILURES) {
-  test(`${name} is retried once, then fails naming the cause`, async () => {
-    stub.script.push(failure, failure);
-    await assertFailsCleanly(await vault(), new RegExp(`${error.source}.*after retrying once`), 2);
+  test(`${name} is retried 3 times, then fails naming the cause`, async () => {
+    stub.script.push(failure, failure, failure, failure);
+    await assertFailsCleanly(await vault(), new RegExp(`${error.source}.*after 3 retries`), 4);
   });
 
   test(`${name} succeeds if the retry gets through`, async () => {
     stub.script.push(failure);
     await assertSucceeds(await vault(), 2);
   });
+
+  test(`${name} succeeds if the last retry gets through`, async () => {
+    stub.script.push(failure, failure, failure);
+    await assertSucceeds(await vault(), 4);
+  });
 }
+
+test('each retry of a failed request waits twice as long as the one before', async () => {
+  const waits: number[] = [];
+  const realSetTimeout = globalThis.setTimeout;
+  // Record only the retry waits (multiples of retryDelayMs below the request timeout), then run them at once.
+  globalThis.setTimeout = ((fn: () => void, ms?: number) => {
+    if (ms !== undefined && ms < FAST.timeoutMs && ms % FAST.retryDelayMs === 0 && ms > 0) waits.push(ms);
+    return realSetTimeout(fn, ms);
+  }) as typeof setTimeout;
+  try {
+    stub.script.push({ status: 500 }, { status: 500 }, { status: 500 }, { status: 500 });
+    await assertFailsCleanly(await vault(), /after 3 retries/, 4);
+  } finally {
+    globalThis.setTimeout = realSetTimeout;
+  }
+  assert.deepEqual(waits, [10, 20, 40]);
+});
 
 test('a request error and a bad reply each get their own retry', async () => {
   stub.script.push({ status: 500 }, { learnings: [] });
@@ -113,7 +135,7 @@ test('an unreachable API is retried, then fails naming the cause', async () => {
   await new Promise((resolve) => server.close(resolve));
   await assertFailsCleanly(
     await vault({ baseUrl: `http://localhost:${port}` }),
-    /Could not reach the Claude API at .*ECONNREFUSED.*after retrying once/,
+    /Could not reach the Claude API at .*ECONNREFUSED.*after 3 retries/,
     0,
   );
 });
