@@ -20,7 +20,7 @@ export type Config = {
   units?: Record<string, string>;
 };
 
-// Matches the frontmatter of the hand-made week plans in Plans/Week plans/.
+// Matches the frontmatter of the hand-made week plans in 🗺️ Plans/🗓️ Week plans/.
 const DEFAULT_NEW_NOTE_TEMPLATE = '---\ntype: plan\ncreated: {{created}}\nperiod: {{period}}\nstatus: Draft\n---\n';
 
 export const KEYCHAIN_SERVICE = 'week-review';

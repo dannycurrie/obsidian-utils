@@ -24,7 +24,7 @@ export function useMockApi() {
 }
 
 /**
- * Temp vault with a `Plans/Week plans` folder and a config file pointing at it.
+ * Temp vault with a `🗺️ Plans/🗓️ Week plans` folder and a config file pointing at it.
  * Pass `noteContent` to create the week's note up front.
  */
 export async function makeVault(options: {
@@ -35,7 +35,7 @@ export async function makeVault(options: {
 }) {
   const dir = await mkdtemp(join(tmpdir(), 'week-review-'));
   const vaultPath = join(dir, 'vault');
-  const noteDir = join(vaultPath, 'Plans', 'Week plans');
+  const noteDir = join(vaultPath, '🗺️ Plans', '🗓️ Week plans');
   await mkdir(noteDir, { recursive: true });
   const notePath = join(noteDir, `${options.week}.md`);
   if (options.noteContent !== undefined) await writeFile(notePath, options.noteContent);
@@ -46,7 +46,7 @@ export async function makeVault(options: {
       baseUrl: options.baseUrl,
       vaultPath,
       realVault: join(dir, 'real-vault'),
-      noteFolder: 'Plans/Week plans',
+      noteFolder: '🗺️ Plans/🗓️ Week plans',
       ...options.config,
     }),
   );
