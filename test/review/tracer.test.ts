@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
-import { weekWindow } from '../src/isoWeek.ts';
+import { weekWindow } from '../../src/shared/isoWeek.ts';
 import { TOKEN, makeVault, reviewBlock, runCli, useMockApi } from './harness.ts';
 
 const mock = useMockApi();

@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { run } from '../src/cli.ts';
-import { defaultConfigPath, loadToken } from '../src/config.ts';
-import { TOKEN, makeVault, snapshot, useMockApi } from './harness.ts';
+import { run } from '../../src/review/cli.ts';
+import { defaultConfigPath, loadToken } from '../../src/review/config.ts';
+import { TOKEN, makeVault, useMockApi } from './harness.ts';
+import { snapshot } from '../harness.ts';
 
 const mock = useMockApi();
 const W42_DONE = new Date('2026-10-20T08:00:00Z');

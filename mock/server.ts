@@ -2,7 +2,7 @@
 import { readFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import { join } from 'node:path';
-import { formatIsoWeek, isoWeekOf } from '../src/isoWeek.ts';
+import { formatIsoWeek, isoWeekOf } from '../src/shared/isoWeek.ts';
 
 const DEFAULT_FIXTURES = join(import.meta.dirname, 'fixtures');
 

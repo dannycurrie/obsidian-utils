@@ -1,9 +1,9 @@
 // Checks the deployed tracker API against the contract the mock serves, for one week, without touching the vault.
 // Usage: node scripts/contract-check.ts [--week 2026-W43] [--config path]
 import { parseArgs } from 'node:util';
-import { type Metric, type MetricsResponse, fetchMetrics } from '../src/api.ts';
-import { defaultConfigPath, loadConfig, loadToken, readKeychain } from '../src/config.ts';
-import { formatIsoWeek, lastCompleteIsoWeek, parseIsoWeek, weekWindow } from '../src/isoWeek.ts';
+import { type Metric, type MetricsResponse, fetchMetrics } from '../src/review/api.ts';
+import { defaultConfigPath, loadConfig, loadToken, readKeychain } from '../src/review/config.ts';
+import { formatIsoWeek, lastCompleteIsoWeek, parseIsoWeek, weekWindow } from '../src/shared/isoWeek.ts';
 
 const TYPES = new Set(['cumulative', 'timed', 'average', 'checklist']);
 const problems: string[] = [];

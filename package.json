@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "week-review": "src/cli.ts",
+    "week-review": "src/review/cli.ts",
     "book-recall": "src/recall/cli.ts"
   },
   "scripts": {

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
-import { run } from '../src/cli.ts';
-import { formatIsoWeek, formatWeekRange, lastCompleteIsoWeek, parseIsoWeek, weekWindow } from '../src/isoWeek.ts';
-import { summarise } from '../src/review.ts';
+import { run } from '../../src/review/cli.ts';
+import { formatIsoWeek, formatWeekRange, lastCompleteIsoWeek, parseIsoWeek, weekWindow } from '../../src/shared/isoWeek.ts';
+import { summarise } from '../../src/review/review.ts';
 import { day, makeVault, responseWith, reviewBlock, tokenEnv, useMockApi } from './harness.ts';
 
 const mock = useMockApi();

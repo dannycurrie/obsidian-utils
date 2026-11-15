@@ -1,6 +1,6 @@
 import type { Metric, MetricType, MetricsResponse } from './api.ts';
-import { londonDate } from './isoWeek.ts';
-import { formatGeneratedAt } from './shared/time.ts';
+import { londonDate } from '../shared/isoWeek.ts';
+import { formatGeneratedAt } from '../shared/time.ts';
 
 export type MetricSummary = {
   id: string;

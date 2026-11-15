@@ -1,5 +1,5 @@
-import { type IsoWeek } from './isoWeek.ts';
-import { type WriteOutcome, markersFor, writeBlock } from './shared/note.ts';
+import { type IsoWeek } from '../shared/isoWeek.ts';
+import { type WriteOutcome, markersFor, writeBlock } from '../shared/note.ts';
 
 export type { WriteOutcome };
 

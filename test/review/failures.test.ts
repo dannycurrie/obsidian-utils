@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { run } from '../src/cli.ts';
-import { TOKEN, makeVault, runCliResult, snapshot, tokenEnv, useMockApi } from './harness.ts';
+import { run } from '../../src/review/cli.ts';
+import { TOKEN, makeVault, runCliResult, tokenEnv, useMockApi } from './harness.ts';
+import { snapshot } from '../harness.ts';
 
 const mock = useMockApi();
 

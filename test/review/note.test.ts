@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { run } from '../src/cli.ts';
-import { formatNoteName } from '../src/note.ts';
-import { makeVault, snapshot, tokenEnv, useMockApi } from './harness.ts';
+import { run } from '../../src/review/cli.ts';
+import { formatNoteName } from '../../src/review/note.ts';
+import { makeVault, tokenEnv, useMockApi } from './harness.ts';
+import { snapshot } from '../harness.ts';
 
 const mock = useMockApi();
 const W42_DONE = new Date('2026-10-20T08:00:00Z');
