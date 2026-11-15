@@ -14,7 +14,7 @@ import {
   previousIsoWeek,
   weekEnd,
   weekWindow,
-} from './isoWeek.ts';
+} from '../shared/isoWeek.ts';
 import { type WriteOutcome, formatNoteName, writeReview } from './note.ts';
 import { renderReview, summarise } from './review.ts';
 

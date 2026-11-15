@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
-import { renderReview, summarise } from '../src/review.ts';
+import { renderReview, summarise } from '../../src/review/review.ts';
 import { day, makeVault, responseWith, reviewBlock, runCli, useMockApi } from './harness.ts';
 
 const mock = useMockApi();

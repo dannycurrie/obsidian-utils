@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { renderReview, summarise } from '../src/review.ts';
+import { renderReview, summarise } from '../../src/review/review.ts';
 import { day, responseWith } from './harness.ts';
 
 function deltaFor(current: Parameters<typeof responseWith>[0], previous?: Parameters<typeof responseWith>[0]) {

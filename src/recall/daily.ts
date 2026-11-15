@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isoWeekOf } from '../isoWeek.ts';
+import { isoWeekOf } from '../shared/isoWeek.ts';
 import { upsertBlock } from '../shared/note.ts';
 import { MARKERS } from './block.ts';
 

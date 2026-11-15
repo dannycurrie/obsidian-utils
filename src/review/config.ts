@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { isLocalUrl, isSamePath } from './shared/guard.ts';
-import { type KeychainReader, type SecretSource, assertNoSecrets, keychainReader, loadSecret } from './shared/secrets.ts';
+import { isLocalUrl, isSamePath } from '../shared/guard.ts';
+import { type KeychainReader, type SecretSource, assertNoSecrets, keychainReader, loadSecret } from '../shared/secrets.ts';
 
 export type { KeychainReader };
 

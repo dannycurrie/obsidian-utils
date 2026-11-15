@@ -1,4 +1,4 @@
-import { TIME_ZONE } from './shared/time.ts';
+import { TIME_ZONE } from './time.ts';
 
 export { TIME_ZONE };
 
